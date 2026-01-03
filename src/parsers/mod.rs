@@ -1,1 +1,19 @@
+use crate::models::ClassInfo;
+use anyhow::Result;
+
 pub mod python;
+
+pub trait LanguageParser {
+    /// The file extensions this parser handles (e.g., ["py", "py3"])
+    fn extensions(&self) -> &[&str];
+
+    /// The core parsing logic
+    fn parse(&self, content: &str) -> Result<Vec<ClassInfo>>;
+}
+
+pub fn get_parser(extension: &str) -> Option<Box<dyn LanguageParser>> {
+    match extension {
+        "py" => Some(Box::new(python::PythonParser)),
+        _ => None,
+    }
+}
