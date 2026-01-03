@@ -37,12 +37,16 @@ fn main() -> Result<()> {
 
     // 2. Parse Each File
     for file_path in files {
-        eprintln!("Parsing: {:?}", file_path);
-        let content = fs::read_to_string(&file_path)?;
+        let ext = file_path.extension().and_then(|s| s.to_str()).unwrap_or("");
         
-        // TODO: Select parser based on extension (currently hardcoded to Python)
-        let classes = parsers::python::parse_python_file(&content)?;
-        all_classes.extend(classes);
+        if let Some(parser) = parsers::get_parser(ext) {
+            eprintln!("Parsing: {:?}", file_path);
+            let content = fs::read_to_string(&file_path)?;
+            let classes = parser.parse(&content)?;
+            all_classes.extend(classes);
+        } else {
+            eprintln!("Skipping {:?}: No parser found for extension '{}'", file_path, ext);
+        }
     }
 
     eprintln!("Extracted {} classes.", all_classes.len());
