@@ -8,6 +8,6 @@ pub struct ClassInfo {
 
 #[derive(Debug)]
 pub struct FileReport {
-    pub path: String,
+    pub path: std::path::PathBuf,
     pub classes: Vec<ClassInfo>,
 }
