@@ -11,9 +11,10 @@ Marco is a high-performance CLI tool written in **Rust** that scans your codebas
   - **Dependencies** (`..>`) from method parameters and return types.
 - **Visual Output**: Generates `.mmd` files ready for Mermaid.js rendering.
 - **Multi-language Support**: 
-  - [x] Python
-  - [ ] Java (Coming soon)
+  - [x] **Python**: Full support for classes and relationships.
+  - [x] **Java**: Full support for classes, interfaces, and complex relationships.
   - [ ] C++ (Coming soon)
+  - [ ] TypeScript (Coming soon)
 
 ## 🛠️ Getting Started
 

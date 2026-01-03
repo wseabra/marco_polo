@@ -1,6 +1,6 @@
-# Marco Polo (Project Context)
+# Marco (Project Context)
 
-**Marco Polo** is a CLI tool written in Rust designed to "cartograph" codebases. It scans source code files, parses them, and generates visual Class Diagrams (specifically compatible with **Mermaid.js**).
+**Marco** is a CLI tool written in Rust designed to "cartograph" codebases. It scans source code files, parses them, and generates visual Class Diagrams (specifically compatible with **Mermaid.js**).
 
 ## 📂 Project Structure
 
@@ -8,20 +8,27 @@ The project follows a standard Rust binary structure:
 
 - **`src/`**
   - **`main.rs`**: Entry point. Handles CLI argument parsing via `clap` and orchestrates the application flow.
-  - **`models.rs`**: Contains the core data structures (`ClassInfo`, `FileReport`) representing the parsed code metadata.
+  - **`models.rs`**: Contains the core data structures (`ClassInfo`, `Relationship`) representing the parsed code metadata.
   - **`scanner.rs`**: Handles file system traversal and discovery, utilizing the `ignore` crate to respect `.gitignore` rules.
+  - **`mermaid.rs`**: Generates Mermaid.js class diagram strings from extracted metadata.
+  - **`parsers/`**: Language-specific parsing logic.
+    - **`mod.rs`**: Defines the `LanguageParser` trait and factory.
+    - **`python.rs`**: Python implementation using tree-sitter.
+    - **`java.rs`**: Java implementation using tree-sitter.
 - **`tests/`**: Integration and unit test resources.
-  - **`python/`**: Contains sample Python files used for verifying the scanner and parser.
+  - **`python/`**: Sample Python files.
+  - **`java/`**: Sample Java files.
 
 ## 🛠️ Tech Stack & Key Dependencies
 
 - **Language**: Rust
-- **CLI Framework**: [`clap`](https://crates.io/crates/clap) (v4.4)
+- **CLI Framework**: [`clap`](https://crates.io/crates/clap) (v4.5)
 - **Error Handling**: [`anyhow`](https://crates.io/crates/anyhow)
 - **File System**: [`ignore`](https://crates.io/crates/ignore) (Efficient recursive directory iterator)
 - **Parsing**:
   - [`tree-sitter`](https://crates.io/crates/tree-sitter) (Incremental parsing system)
-  - [`tree-sitter-python`](https://crates.io/crates/tree-sitter-python) (Python grammar)
+  - [`tree-sitter-python`](https://crates.io/crates/tree-sitter-python)
+  - [`tree-sitter-java`](https://crates.io/crates/tree-sitter-java)
 
 ## 🚀 Building and Running
 
@@ -36,22 +43,22 @@ cargo build
 ### Run
 To scan the current directory (or a specific path):
 ```bash
-cargo run -- .
+marco .
 # OR
 cargo run -- /path/to/codebase
 ```
-*Current output matches `.py` files found in the target directory.*
+*Default output matches `.py` and `.java` files found in the target directory.*
 
 ### Test
-Run the test suite (includes scanner verification):
+Run the test suite:
 ```bash
 cargo test
 ```
 
 ## 📝 Development Notes
 
-- **File Discovery**: The scanner currently filters for specific extensions (e.g., `["py"]`) and respects `.gitignore`.
-- **Parsing Status**: Parsing logic is implemented for Python using `tree-sitter`.
+- **File Discovery**: The scanner filters for specific extensions (default: `["py", "java"]`) and respects `.gitignore`.
+- **Parsing Status**: Parsing logic is implemented for Python and Java using `tree-sitter`. It detects classes, methods, properties, and complex UML relationships.
 - **Output**: Generates `.mmd` (Mermaid) files to a specified output path.
 
 ## 🤝 Contribution Guidelines
