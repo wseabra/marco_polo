@@ -20,7 +20,10 @@ pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
         .context("Failed to create Tree-sitter query")?;
 
     // Query to find properties in __init__
-    let prop_query_str = "(assignment left: (attribute object: (identifier) @obj attribute: (identifier) @attr))";
+    let prop_query_str = "
+        (assignment left: (attribute object: (identifier) @obj attribute: (identifier) @attr))
+        (assignment left: (pattern_list (attribute object: (identifier) @obj attribute: (identifier) @attr)))
+    ";
     let prop_query = Query::new(language, prop_query_str)
         .context("Failed to create property query")?;
 
@@ -238,6 +241,24 @@ class Outer:
         let names: Vec<String> = classes.iter().map(|c| c.name.clone()).collect();
         assert!(names.contains(&"Outer".to_string()));
         assert!(names.contains(&"Inner".to_string()));
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_complex_properties() -> Result<()> {
+        let content = "
+class ComplexUser:
+    def __init__(self):
+        self.name: str = 'Named'
+        self.x, self.y = 0, 0
+";
+        let classes = parse_python_file(content)?;
+        let props = &classes[0].properties;
+        
+        assert!(props.contains(&"name".to_string()), "Should support type hints");
+        assert!(props.contains(&"x".to_string()), "Should support tuple assignment x");
+        assert!(props.contains(&"y".to_string()), "Should support tuple assignment y");
         
         Ok(())
     }
