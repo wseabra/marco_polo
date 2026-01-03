@@ -60,6 +60,10 @@ cargo test
 We strictly follow **Conventional Commits** for all commit messages.
 Format: `<type>(<scope>): <subject>`
 
+### Branching and Merging
+- Always work in feature branches.
+- **NEVER** merge a Pull Request without explicit command/approval from the user.
+
 **Types:**
 - `feat`: New feature
 - `fix`: Bug fix
