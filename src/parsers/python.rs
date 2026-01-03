@@ -35,8 +35,17 @@ pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
         if let Some(body_node) = class_node.child_by_field_name("body") {
             let mut cursor = body_node.walk();
             for child in body_node.children(&mut cursor) {
-                if child.kind() == "function_definition" {
-                    if let Some(func_name_node) = child.child_by_field_name("name") {
+                let func_node = match child.kind() {
+                    "function_definition" | "async_function_definition" => Some(child),
+                    "decorated_definition" => {
+                        child.child_by_field_name("definition")
+                            .filter(|n| n.kind() == "function_definition" || n.kind() == "async_function_definition")
+                    }
+                    _ => None,
+                };
+
+                if let Some(fn_node) = func_node {
+                    if let Some(func_name_node) = fn_node.child_by_field_name("name") {
                         let method_name = get_node_text(func_name_node, content);
                         if !method_name.starts_with('_') {
                             methods.push(method_name);
@@ -59,6 +68,7 @@ pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
 
 fn get_node_text(node: Node, content: &str) -> String {
     node.utf8_text(content.as_bytes())
+        .ok()
         .unwrap_or("")
         .to_string()
 }
@@ -109,6 +119,102 @@ class Bird:
         assert_eq!(classes[1].name, "Bird");
         assert_eq!(classes[1].methods, vec!["fly"]);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_decorated_methods() -> Result<()> {
+        let content = "
+class MathUtils:
+    @staticmethod
+    def add(a, b):
+        return a + b
+
+    @classmethod
+    def create(cls):
+        pass
+
+    def normal(self):
+        pass
+";
+        let classes = parse_python_file(content)?;
+        let methods = &classes[0].methods;
+        
+        assert!(methods.contains(&"add".to_string()), "Should find @staticmethod 'add'");
+        assert!(methods.contains(&"create".to_string()), "Should find @classmethod 'create'");
+        assert!(methods.contains(&"normal".to_string()), "Should find normal method");
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_async_methods() -> Result<()> {
+        let content = "
+class AsyncService:
+    async fn fetch_data(self):
+        pass
+
+    @log_it
+    async def process_data(self):
+        pass
+";
+        let classes = parse_python_file(content)?;
+        assert_eq!(classes.len(), 1);
+        let methods = &classes[0].methods;
+        
+        // Note: my sample had 'async fn' but it should be 'async def'
+        // Actually I'll fix the sample to valid python
+        let content = "
+class AsyncService:
+    async def fetch_data(self):
+        pass
+
+    @log_it
+    async def process_data(self):
+        pass
+";
+        let classes = parse_python_file(content)?;
+        let methods = &classes[0].methods;
+        
+        assert!(methods.contains(&"fetch_data".to_string()));
+        assert!(methods.contains(&"process_data".to_string()));
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_empty_class() -> Result<()> {
+        let content = "class Empty: pass";
+        let classes = parse_python_file(content)?;
+        assert_eq!(classes.len(), 1);
+        assert!(classes[0].methods.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_no_classes() -> Result<()> {
+        let content = "def standalone_func(): pass";
+        let classes = parse_python_file(content)?;
+        assert!(classes.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_nested_classes() -> Result<()> {
+        let content = "
+class Outer:
+    class Inner:
+        def inner_method(self): pass
+    def outer_method(self): pass
+";
+        let classes = parse_python_file(content)?;
+        // Current query finds all class definitions
+        assert_eq!(classes.len(), 2);
+        
+        let names: Vec<String> = classes.iter().map(|c| c.name.clone()).collect();
+        assert!(names.contains(&"Outer".to_string()));
+        assert!(names.contains(&"Inner".to_string()));
+        
         Ok(())
     }
 }
