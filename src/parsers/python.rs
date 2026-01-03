@@ -62,3 +62,53 @@ fn get_node_text(node: Node, content: &str) -> String {
         .unwrap_or("")
         .to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_simple_class() -> Result<()> {
+        let content = "
+class Dog:
+    def bark(self):
+        pass
+    
+    def _internal(self):
+        pass
+
+    def eat(self):
+        pass
+";
+        let classes = parse_python_file(content)?;
+        
+        assert_eq!(classes.len(), 1);
+        let dog = &classes[0];
+        assert_eq!(dog.name, "Dog");
+        assert_eq!(dog.methods, vec!["bark", "eat"]);
+        // Should NOT include _internal
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_multiple_classes() -> Result<()> {
+        let content = "
+class Cat:
+    def meow(self): pass
+
+class Bird:
+    def fly(self): pass
+";
+        let classes = parse_python_file(content)?;
+        assert_eq!(classes.len(), 2);
+        
+        assert_eq!(classes[0].name, "Cat");
+        assert_eq!(classes[0].methods, vec!["meow"]);
+        
+        assert_eq!(classes[1].name, "Bird");
+        assert_eq!(classes[1].methods, vec!["fly"]);
+
+        Ok(())
+    }
+}
