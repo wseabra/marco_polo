@@ -2,9 +2,11 @@ use crate::models::ClassInfo;
 use anyhow::Result;
 
 pub mod python;
+pub mod java;
 
 pub trait LanguageParser {
     /// The file extensions this parser handles (e.g., ["py", "py3"])
+    #[allow(dead_code)]
     fn extensions(&self) -> &[&str];
 
     /// The core parsing logic
@@ -14,6 +16,7 @@ pub trait LanguageParser {
 pub fn get_parser(extension: &str) -> Option<Box<dyn LanguageParser>> {
     match extension {
         "py" => Some(Box::new(python::PythonParser)),
+        "java" => Some(Box::new(java::JavaParser)),
         _ => None,
     }
 }
