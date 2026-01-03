@@ -1,30 +1,32 @@
 use crate::models::ClassInfo;
+use std::fmt::Write;
 
 pub fn generate_mermaid(classes: &[ClassInfo]) -> String {
-    let mut diagram = String::from("classDiagram\n");
+    let mut diagram = String::new();
+    writeln!(&mut diagram, "classDiagram").unwrap();
 
     // 1. Define Classes
     for class in classes {
-        diagram.push_str(&format!("    class {} {{\n", class.name));
+        writeln!(&mut diagram, "    class {} {{", class.name).unwrap();
         
         // Properties
         for prop in &class.properties {
-            diagram.push_str(&format!("        +{}\n", prop));
+            writeln!(&mut diagram, "        +{}", prop).unwrap();
         }
 
         // Methods
         for method in &class.methods {
-            diagram.push_str(&format!("        +{}()\n", method));
+            writeln!(&mut diagram, "        +{}()", method).unwrap();
         }
 
-        diagram.push_str("    }\n");
+        writeln!(&mut diagram, "    }}").unwrap();
     }
 
     // 2. Define Relationships (Inheritance)
     for class in classes {
         for parent in &class.parents {
             // Parent <|-- Child
-            diagram.push_str(&format!("    {} <|-- {}\n", parent, class.name));
+            writeln!(&mut diagram, "    {} <|-- {}", parent, class.name).unwrap();
         }
     }
 
@@ -54,12 +56,7 @@ mod tests {
 
         let output = generate_mermaid(&classes);
         
-        assert!(output.contains("classDiagram"));
-        assert!(output.contains("class Dog {"));
-        assert!(output.contains("+bark()"));
-        assert!(output.contains("+breed"));
-        assert!(output.contains("Animal <|-- Dog"));
-        assert!(output.contains("class Animal {"));
-        assert!(output.contains("+eat()"));
+        let expected = "classDiagram\n    class Dog {\n        +breed\n        +bark()\n    }\n    class Animal {\n        +eat()\n    }\n    Animal <|-- Dog\n";
+        assert_eq!(output, expected);
     }
 }
