@@ -87,7 +87,7 @@ impl LanguageParser for CppParser {
                                         extract_type(type_node, content, &mut type_nodes);
                                         
                                         // Check for composition (initialized with constructor)
-                                        let is_composition = has_constructor_initializer(declarator);
+                                        let is_composition = has_initializer(declarator);
                                         
                                         // Check for aggregation (pointer or reference)
                                         // We need to check if the declarator WRAPPERS are pointers/refs
@@ -233,19 +233,16 @@ fn extract_return_type(node: Node, content: &str, relationships: &mut Vec<Relati
     }
 }
 
-fn has_constructor_initializer(declarator: Node) -> bool {
-    // Check if the declarator is an 'init_declarator' and has a value
-    if declarator.kind() == "init_declarator" {
-        return true; 
-    }
-    false
+fn has_initializer(declarator: Node) -> bool {
+    // Check if the declarator is an 'init_declarator', meaning it has an initializer.
+    declarator.kind() == "init_declarator"
 }
 
 fn is_pointer_or_reference_wrapper(node: Node) -> bool {
     // The declarator might be a pointer_declarator wrapping an identifier
     // or a reference_declarator wrapping an identifier
     match node.kind() {
-        "pointer_declarator" | "reference_declarator" | "field_declarator" => {
+        "pointer_declarator" | "reference_declarator" => {
             return true;
         }
         _ => {
@@ -293,14 +290,13 @@ fn is_builtin_type(type_name: &str) -> bool {
         "int8_t" | "int16_t" | "int32_t" | "int64_t" |
         "std::string" | "std::vector" | "std::map" | "std::set" | "std::list" |
         "std::unique_ptr" | "std::shared_ptr" | "std::weak_ptr"
-    ) || type_name.starts_with("std::")
+    )
 }
 
 fn get_node_text(node: Node, content: &str) -> String {
     node.utf8_text(content.as_bytes())
-        .ok()
-        .unwrap_or("")
-        .to_string()
+        .map(ToString::to_string)
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
