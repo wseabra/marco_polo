@@ -30,12 +30,12 @@ cd marco_polo
 cargo install --path .
 ```
 
-Now you can run the `marco` command from anywhere.
+Now you can run the `marco-polo` command from anywhere.
 
 ### Usage
 
 ```bash
-marco [OPTIONS] [PATH]
+marco-polo [OPTIONS] [PATH]
 ```
 
 **Arguments:**
@@ -48,7 +48,7 @@ marco [OPTIONS] [PATH]
 
 **Example:**
 ```bash
-marco ./src --output diagram.mmd
+marco-polo ./src --output diagram.mmd
 ```
 
 ## 📊 Example Output
@@ -79,7 +79,7 @@ class Order:
         self.items.append(product)
 ```
 
-**Marco** generates the following Mermaid diagram:
+**Marco-Polo** generates the following Mermaid diagram:
 
 ```mermaid
 classDiagram
