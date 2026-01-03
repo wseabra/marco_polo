@@ -5,6 +5,7 @@ use anyhow::Result;
 mod models;
 mod scanner;
 mod parsers;
+mod mermaid;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "A CLI tool to cartograph codebases", long_about = None)]
