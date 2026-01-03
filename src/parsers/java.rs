@@ -2,7 +2,6 @@ use std::sync::OnceLock;
 use tree_sitter::{Parser, Query, QueryCursor, Node};
 use crate::models::{ClassInfo, Relationship, RelationshipType};
 use anyhow::{Result, Context};
-use std::collections::HashSet;
 use super::LanguageParser;
 
 const JAVA_CLASS_QUERY_STR: &str = "
@@ -49,50 +48,18 @@ impl LanguageParser for JavaParser {
             let mut properties = Vec::new();
             let mut relationships = Vec::new();
 
-            // 1. Inheritance (Extends)
-            if let Some(superclass_node) = class_node.child_by_field_name("superclass") {
-                // superclass usually has a type child
-                let mut cursor = superclass_node.walk();
-                for child in superclass_node.children(&mut cursor) {
-                    if child.kind().contains("type") || child.kind() == "type_identifier" {
-                        let parent = get_node_text(child, content);
-                        relationships.push(Relationship {
-                            target: parent,
-                            rel_type: RelationshipType::Inheritance,
-                            label: None,
-                        });
+            // 1. Inheritance (Classes and Interfaces)
+            let mut inheritance_cursor = class_node.walk();
+            for child in class_node.children(&mut inheritance_cursor) {
+                match child.kind() {
+                    "superclass" | "super_interfaces" | "extends_interfaces" => {
+                        extract_inheritance(child, content, &mut relationships);
                     }
+                    _ => {}
                 }
             }
 
-            // 2. Inheritance (Interfaces / Implements)
-            if let Some(interfaces_node) = class_node.child_by_field_name("interfaces") {
-                let mut cursor = interfaces_node.walk();
-                for child in interfaces_node.children(&mut cursor) {
-                    if child.kind() == "type_list" {
-                        let mut inner_cursor = child.walk();
-                        for type_node in child.children(&mut inner_cursor) {
-                            if type_node.kind() == "type_identifier" || type_node.kind().contains("type") {
-                                let parent = get_node_text(type_node, content);
-                                relationships.push(Relationship {
-                                    target: parent,
-                                    rel_type: RelationshipType::Inheritance,
-                                    label: None,
-                                });
-                            }
-                        }
-                    } else if child.kind() == "type_identifier" || child.kind().contains("type") {
-                        let parent = get_node_text(child, content);
-                        relationships.push(Relationship {
-                            target: parent,
-                            rel_type: RelationshipType::Inheritance,
-                            label: None,
-                        });
-                    }
-                }
-            }
-
-            // 3. Body: Fields and Methods
+            // 2. Body: Fields and Methods
             if let Some(body_node) = class_node.child_by_field_name("body") {
                 let mut cursor = body_node.walk();
                 for child in body_node.children(&mut cursor) {
@@ -196,17 +163,40 @@ impl LanguageParser for JavaParser {
     }
 }
 
+fn extract_inheritance(node: Node, content: &str, relationships: &mut Vec<Relationship>) {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "type_list" {
+            let mut inner_cursor = child.walk();
+            for type_node in child.children(&mut inner_cursor) {
+                if type_node.kind().contains("type") {
+                    let parent = get_node_text(type_node, content);
+                    relationships.push(Relationship {
+                        target: parent,
+                        rel_type: RelationshipType::Inheritance,
+                        label: None,
+                    });
+                }
+            }
+        } else if child.kind().contains("type") {
+            let parent = get_node_text(child, content);
+            relationships.push(Relationship {
+                target: parent,
+                rel_type: RelationshipType::Inheritance,
+                label: None,
+            });
+        }
+    }
+}
+
 fn resolve_java_types(node: Node, content: &str, types: &mut Vec<String>) {
     match node.kind() {
         "type_identifier" => {
             let name = get_node_text(node, content);
-            let primitives: HashSet<&str> = [
-                "byte", "short", "int", "long", "float", "double", "char", "boolean", "void",
-                "String", "Object", "List", "ArrayList", "Map", "HashMap", "Set", "HashSet", "Optional"
-            ].iter().cloned().collect();
-            
-            if !primitives.contains(name.as_str()) {
-                types.push(name);
+            match name.as_str() {
+                "byte" | "short" | "int" | "long" | "float" | "double" | "char" | "boolean" | "void" |
+                "String" | "Object" | "List" | "ArrayList" | "Map" | "HashMap" | "Set" | "HashSet" | "Optional" => {},
+                _ => types.push(name),
             }
         }
         _ => {
@@ -228,6 +218,26 @@ fn get_node_text(node: Node, content: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_inspect_interface_tree() {
+        let content = "public interface D extends A, B, C {}";
+        let mut parser = Parser::new();
+        parser.set_language(tree_sitter_java::language()).unwrap();
+        let tree = parser.parse(content, None).unwrap();
+        println!("DEBUG_JAVA_TREE: {}", tree.root_node().to_sexp());
+    }
+
+    #[test]
+    fn test_parse_interface_inheritance() -> Result<()> {
+        let content = "public interface D extends A, B, C {}";
+        let classes = JavaParser.parse(content)?;
+        let d = &classes[0];
+        assert!(d.relationships.iter().any(|r| r.target == "A" && r.rel_type == RelationshipType::Inheritance));
+        assert!(d.relationships.iter().any(|r| r.target == "B" && r.rel_type == RelationshipType::Inheritance));
+        assert!(d.relationships.iter().any(|r| r.target == "C" && r.rel_type == RelationshipType::Inheritance));
+        Ok(())
+    }
 
     #[test]
     fn test_parse_java_simple() -> Result<()> {
