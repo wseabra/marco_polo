@@ -55,11 +55,24 @@ pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
             }
         }
 
+        // Extract Parents (Superclasses)
+        let mut parents = Vec::new();
+        if let Some(superclasses_node) = class_node.child_by_field_name("superclasses") {
+            let mut cursor = superclasses_node.walk();
+            for child in superclasses_node.children(&mut cursor) {
+                // We typically want identifiers, attributes (module.Class), or calls (Generic[T])
+                // Simple case: ignore punctuation like "(" , ")"
+                if child.kind() == "identifier" || child.kind() == "attribute" || child.kind() == "subscript" {
+                     parents.push(get_node_text(child, content));
+                }
+            }
+        }
+
         classes.push(ClassInfo {
             name,
             methods,
             properties: Vec::new(), // TODO: Implement property extraction
-            parents: Vec::new(),    // TODO: Implement inheritance extraction
+            parents,
         });
     }
 
@@ -215,6 +228,35 @@ class Outer:
         assert!(names.contains(&"Outer".to_string()));
         assert!(names.contains(&"Inner".to_string()));
         
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_inheritance() -> Result<()> {
+        let content = "
+class Animal: pass
+class Dog(Animal): pass
+class Mixed(Animal, Runnable): pass
+class Generic(List[int]): pass
+";
+        let classes = parse_python_file(content)?;
+        
+        // Find Dog
+        let dog = classes.iter().find(|c| c.name == "Dog").unwrap();
+        assert_eq!(dog.parents, vec!["Animal"]);
+
+        // Find Mixed
+        let mixed = classes.iter().find(|c| c.name == "Mixed").unwrap();
+        assert!(mixed.parents.contains(&"Animal".to_string()));
+        assert!(mixed.parents.contains(&"Runnable".to_string()));
+
+        // Find Generic
+        let generic = classes.iter().find(|c| c.name == "Generic").unwrap();
+        // The simple extractor might get "List[int]" or "List" depending on logic. 
+        // My implementation checks for "subscript" kind too, so it should grab the whole node text "List[int]"
+        // or if it treats subscript node as one child.
+        assert_eq!(generic.parents[0], "List[int]");
+
         Ok(())
     }
 }
