@@ -34,13 +34,12 @@ mod tests {
         let root = Path::new("tests/python");
         let files = find_source_files(root, &["py"])?;
 
-        // Expect at least animals.py
-        let found_animals = files.iter().any(|p| p.file_name().unwrap() == "animals.py");
-        assert!(found_animals, "Should find animals.py");
-
-        // Expect NOT to find ignore_me.txt
-        let found_txt = files.iter().any(|p| p.file_name().unwrap() == "ignore_me.txt");
-        assert!(!found_txt, "Should not find ignore_me.txt");
+        // Expect exactly one file: `tests/python/animals.py`.
+        assert_eq!(files.len(), 1, "Should find exactly one .py file");
+        assert!(
+            files[0].ends_with("tests/python/animals.py"),
+            "The found file should be animals.py"
+        );
 
         Ok(())
     }
