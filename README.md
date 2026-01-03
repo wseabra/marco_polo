@@ -1,11 +1,14 @@
-# 🌍 Marco Polo
+# 🌍 Marco
 **A CLI Tool to Cartograph Codebases**
 
-Marco Polo (`marco`) is a high-performance CLI tool written in **Rust** that scans your codebase and generates **Mermaid.js Class Diagrams**. It helps developers visualize structure and inheritance in large projects quickly.
+Marco is a high-performance CLI tool written in **Rust** that scans your codebase and generates **Mermaid.js Class Diagrams**. It helps developers visualize structure, inheritance, and relationships in large projects quickly.
 
 ## 🚀 Features
 - **Fast Scanning**: Uses the `ignore` crate to traverse directories while respecting `.gitignore`.
 - **Accurate Parsing**: Leverages `tree-sitter` for robust AST-based code analysis.
+- **Advanced Relationships**: Detects not just inheritance, but also:
+  - **Composition/Aggregation** (`*--`, `o--`) from properties and `__init__`.
+  - **Dependencies** (`..>`) from method parameters and return types.
 - **Visual Output**: Generates `.mmd` files ready for Mermaid.js rendering.
 - **Multi-language Support**: 
   - [x] Python
@@ -18,16 +21,82 @@ Marco Polo (`marco`) is a high-performance CLI tool written in **Rust** that sca
 - [Rust & Cargo](https://rustup.rs/) installed.
 
 ### Installation
+You can build from source:
+
 ```bash
 git clone https://github.com/wseabra/marco_polo.git
 cd marco_polo
-cargo build --release
+cargo install --path .
 ```
 
+Now you can run the `marco` command from anywhere.
+
 ### Usage
-Run the tool against any directory:
+
 ```bash
-cargo run -- .
+marco [OPTIONS] [PATH]
+```
+
+**Arguments:**
+- `[PATH]`: Path to the codebase to scan (defaults to current directory `.`).
+
+**Options:**
+- `-o, --output <FILE>`: Output file path for the Mermaid diagram (default: `output.mmd`).
+- `-e, --extensions <EXT>`: Comma-separated list of file extensions to scan (default: `py`).
+- `-h, --help`: Print help information.
+
+**Example:**
+```bash
+marco ./src --output diagram.mmd
+```
+
+## 📊 Example Output
+
+Given the following Python code:
+
+```python
+from typing import List
+
+class Entity:
+    def __init__(self, id: int):
+        self.id = id
+
+class Product:
+    pass
+
+class User(Entity):
+    def __init__(self, id: int, name: str):
+        super().__init__(id)
+        self.name = name
+
+class Order:
+    def __init__(self, user: User):
+        self.user = user  # Aggregation
+        self.items: List[Product] = []
+
+    def add_item(self, product: Product): # Dependency
+        self.items.append(product)
+```
+
+**Marco** generates the following Mermaid diagram:
+
+```mermaid
+classDiagram
+    class Entity {
+        +id
+    }
+    class User {
+        +name
+    }
+    class Order {
+        +user
+        +items
+        +add_item()
+    }
+    Entity <|-- User
+    User o-- Order : user
+    Product o-- Order : items
+    Product ..> Order
 ```
 
 ## 🤝 Contributing
