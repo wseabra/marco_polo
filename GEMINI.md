@@ -63,6 +63,7 @@ Format: `<type>(<scope>): <subject>`
 ### Branching and Merging
 - Always work in feature branches.
 - **NEVER** merge a Pull Request without explicit command/approval from the user.
+- **NEVER** push directly to the `main` branch. All changes must go through a Pull Request.
 
 **Types:**
 - `feat`: New feature
