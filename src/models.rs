@@ -6,6 +6,7 @@ pub struct ClassInfo {
     pub parents: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct FileReport {
     pub path: std::path::PathBuf,
