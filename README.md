@@ -55,9 +55,14 @@ marco ./src --output diagram.mmd
 Given the following Python code:
 
 ```python
+from typing import List
+
 class Entity:
     def __init__(self, id: int):
         self.id = id
+
+class Product:
+    pass
 
 class User(Entity):
     def __init__(self, id: int, name: str):

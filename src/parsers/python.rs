@@ -1,6 +1,7 @@
 use tree_sitter::{Parser, Query, QueryCursor, Node};
 use crate::models::{ClassInfo, Relationship, RelationshipType};
 use anyhow::{Result, Context};
+use std::collections::HashSet;
 
 pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
     let mut parser = Parser::new();
@@ -177,8 +178,9 @@ fn resolve_types(node: Node, content: &str, types: &mut Vec<String>) {
     match node.kind() {
         "identifier" => {
             let name = get_node_text(node, content);
-            let primitives = ["str", "int", "float", "bool", "bytes", "None", "Any", "List", "Dict", "Set", "Optional", "Union", "Tuple"];
-            if !primitives.contains(&name.as_str()) {
+            let primitives: HashSet<&str> = ["str", "int", "float", "bool", "bytes", "None", "Any", "List", "Dict", "Set", "Optional", "Union", "Tuple"].iter().cloned().collect();
+            
+            if !primitives.contains(name.as_str()) {
                 types.push(name);
             }
         }
