@@ -1,3 +1,4 @@
+use std::sync::OnceLock;
 use tree_sitter::{Parser, Query, QueryCursor, Node};
 use crate::models::{ClassInfo, Relationship, RelationshipType};
 use anyhow::{Result, Context};
@@ -16,9 +17,11 @@ pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
     let mut classes = Vec::new();
 
     // Query to find all class definitions
-    let query_str = "(class_definition) @class";
-    let query = Query::new(language, query_str)
-        .context("Failed to create Tree-sitter query")?;
+    static QUERY: OnceLock<Query> = OnceLock::new();
+    let query = QUERY.get_or_init(|| {
+        Query::new(language, "(class_definition) @class")
+            .expect("Failed to create Tree-sitter query")
+    });
 
     // Query to find properties in __init__
     let prop_query_str = "
@@ -29,7 +32,7 @@ pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
         .context("Failed to create property query")?;
 
     let mut query_cursor = QueryCursor::new();
-    let matches = query_cursor.matches(&query, root_node, content.as_bytes());
+    let matches = query_cursor.matches(query, root_node, content.as_bytes());
 
     for m in matches {
         let class_node = m.captures[0].node;
