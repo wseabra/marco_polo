@@ -5,6 +5,12 @@ use anyhow::{Result, Context};
 use std::collections::HashSet;
 use super::LanguageParser;
 
+const CLASS_QUERY_STR: &str = "(class_definition) @class";
+const PROP_QUERY_STR: &str = "
+    (assignment left: (attribute object: (identifier) @obj attribute: (identifier) @attr))
+    (assignment left: (pattern_list (attribute object: (identifier) @obj attribute: (identifier) @attr)))
+";
+
 pub struct PythonParser;
 
 impl LanguageParser for PythonParser {
@@ -27,18 +33,14 @@ impl LanguageParser for PythonParser {
         // Query to find all class definitions
         static CLASS_QUERY: OnceLock<Query> = OnceLock::new();
         let query = CLASS_QUERY.get_or_init(|| {
-            Query::new(tree_sitter_python::language(), "(class_definition) @class")
+            Query::new(tree_sitter_python::language(), CLASS_QUERY_STR)
                 .expect("Static class query is invalid")
         });
 
         // Query to find properties in __init__
         static PROP_QUERY: OnceLock<Query> = OnceLock::new();
         let prop_query = PROP_QUERY.get_or_init(|| {
-            let prop_query_str = "
-                (assignment left: (attribute object: (identifier) @obj attribute: (identifier) @attr))
-                (assignment left: (pattern_list (attribute object: (identifier) @obj attribute: (identifier) @attr)))
-            ";
-            Query::new(tree_sitter_python::language(), prop_query_str)
+            Query::new(tree_sitter_python::language(), PROP_QUERY_STR)
                 .expect("Static property query is invalid")
         });
 
