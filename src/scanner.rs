@@ -39,4 +39,19 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_find_cpp_files() -> Result<()> {
+        let root = Path::new("tests/cpp");
+        let files = find_source_files(root, &["cpp"])?;
+
+        // Should find at least `tests/cpp/Animals.cpp`.
+        assert!(files.len() >= 1, "Should find at least one .cpp file");
+        assert!(
+            files.iter().any(|p| p.ends_with("tests/cpp/Animals.cpp")),
+            "The found files should include Animals.cpp"
+        );
+
+        Ok(())
+    }
 }

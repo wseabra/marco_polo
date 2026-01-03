@@ -23,3 +23,5 @@ target
 # Local/Generated files
 *.mmd
 plan.md
+.gemini/
+gha-creds-*.json

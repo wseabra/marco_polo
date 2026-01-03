@@ -3,6 +3,7 @@ use anyhow::Result;
 
 pub mod python;
 pub mod java;
+pub mod cpp;
 
 pub trait LanguageParser {
     /// The file extensions this parser handles (e.g., ["py", "py3"])
@@ -17,6 +18,7 @@ pub fn get_parser(extension: &str) -> Option<Box<dyn LanguageParser>> {
     match extension {
         "py" => Some(Box::new(python::PythonParser)),
         "java" => Some(Box::new(java::JavaParser)),
+        "cpp" | "cc" | "cxx" | "h" | "hpp" => Some(Box::new(cpp::CppParser)),
         _ => None,
     }
 }

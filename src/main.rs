@@ -20,7 +20,7 @@ struct Args {
     output: PathBuf,
 
     /// File extensions to include (comma-separated)
-    #[arg(short, long, value_delimiter = ',', default_value = "py,java")]
+    #[arg(short, long, value_delimiter = ',', default_value = "py,java,cpp")]
     extensions: Vec<String>,
 }
 
