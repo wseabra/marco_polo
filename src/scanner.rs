@@ -24,7 +24,6 @@ pub fn find_source_files(root: &Path, extensions: &[&str]) -> Result<Vec<PathBuf
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
 
     #[test]
     fn test_find_python_files() -> Result<()> {

@@ -19,6 +19,14 @@ pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
     let query = Query::new(language, query_str)
         .context("Failed to create Tree-sitter query")?;
 
+    // Query to find properties in __init__
+    let prop_query_str = "
+        (assignment left: (attribute object: (identifier) @obj attribute: (identifier) @attr))
+        (assignment left: (pattern_list (attribute object: (identifier) @obj attribute: (identifier) @attr)))
+    ";
+    let prop_query = Query::new(language, prop_query_str)
+        .context("Failed to create property query")?;
+
     let mut query_cursor = QueryCursor::new();
     let matches = query_cursor.matches(&query, root_node, content.as_bytes());
 
@@ -30,8 +38,10 @@ pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
             .map(|n| get_node_text(n, content))
             .unwrap_or_else(|| "Anonymous".to_string());
 
-        // Extract Methods (Direct children of the body block)
+        // Extract Methods and Properties
         let mut methods = Vec::new();
+        let mut properties = Vec::new();
+
         if let Some(body_node) = class_node.child_by_field_name("body") {
             let mut cursor = body_node.walk();
             for child in body_node.children(&mut cursor) {
@@ -47,6 +57,25 @@ pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
                 if let Some(fn_node) = func_node {
                     if let Some(func_name_node) = fn_node.child_by_field_name("name") {
                         let method_name = get_node_text(func_name_node, content);
+                        
+                        // Check for __init__ to extract properties
+                        if method_name == "__init__" {
+                            let mut prop_cursor = QueryCursor::new();
+                            let prop_matches = prop_cursor.matches(&prop_query, fn_node, content.as_bytes());
+                            
+                            for pm in prop_matches {
+                                let obj_node = pm.captures[0].node;
+                                let attr_node = pm.captures[1].node;
+                                
+                                let obj_name = get_node_text(obj_node, content);
+                                let attr_name = get_node_text(attr_node, content);
+                                
+                                if obj_name == "self" && !attr_name.starts_with('_') {
+                                    properties.push(attr_name);
+                                }
+                            }
+                        }
+
                         if !method_name.starts_with('_') {
                             methods.push(method_name);
                         }
@@ -71,7 +100,7 @@ pub fn parse_python_file(content: &str) -> Result<Vec<ClassInfo>> {
         classes.push(ClassInfo {
             name,
             methods,
-            properties: Vec::new(), // TODO: Implement property extraction
+            properties,
             parents,
         });
     }
@@ -164,21 +193,6 @@ class MathUtils:
     fn test_parse_async_methods() -> Result<()> {
         let content = "
 class AsyncService:
-    async fn fetch_data(self):
-        pass
-
-    @log_it
-    async def process_data(self):
-        pass
-";
-        let classes = parse_python_file(content)?;
-        assert_eq!(classes.len(), 1);
-        let methods = &classes[0].methods;
-        
-        // Note: my sample had 'async fn' but it should be 'async def'
-        // Actually I'll fix the sample to valid python
-        let content = "
-class AsyncService:
     async def fetch_data(self):
         pass
 
@@ -227,6 +241,46 @@ class Outer:
         let names: Vec<String> = classes.iter().map(|c| c.name.clone()).collect();
         assert!(names.contains(&"Outer".to_string()));
         assert!(names.contains(&"Inner".to_string()));
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_complex_properties() -> Result<()> {
+        let content = "
+class ComplexUser:
+    def __init__(self):
+        self.name: str = 'Named'
+        self.x, self.y = 0, 0
+";
+        let classes = parse_python_file(content)?;
+        let props = &classes[0].properties;
+        
+        assert!(props.contains(&"name".to_string()), "Should support type hints");
+        assert!(props.contains(&"x".to_string()), "Should support tuple assignment x");
+        assert!(props.contains(&"y".to_string()), "Should support tuple assignment y");
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_properties() -> Result<()> {
+        let content = "
+class User:
+    def __init__(self, name):
+        self.name = name
+        self.age = 0
+        self._private = 'hidden'
+
+    def other(self):
+        self.dynamic = 1 # Should ideally be ignored if we only look at __init__
+";
+        let classes = parse_python_file(content)?;
+        let user = &classes[0];
+        
+        assert!(user.properties.contains(&"name".to_string()), "Should find 'name' property");
+        assert!(user.properties.contains(&"age".to_string()), "Should find 'age' property");
+        assert!(!user.properties.contains(&"_private".to_string()), "Should ignore private properties");
         
         Ok(())
     }
