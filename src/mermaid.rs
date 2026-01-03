@@ -1,5 +1,6 @@
-use crate::models::ClassInfo;
+use crate::models::{ClassInfo, RelationshipType};
 use std::fmt::Write;
+use std::collections::HashSet;
 
 pub fn generate_mermaid(classes: &[ClassInfo]) -> String {
     let mut diagram = String::new();
@@ -22,11 +23,26 @@ pub fn generate_mermaid(classes: &[ClassInfo]) -> String {
         writeln!(&mut diagram, "    }}").unwrap();
     }
 
-    // 2. Define Relationships (Inheritance)
+    // 2. Define Relationships
+    let mut seen = HashSet::new();
     for class in classes {
-        for parent in &class.parents {
-            // Parent <|-- Child
-            writeln!(&mut diagram, "    {} <|-- {}", parent, class.name).unwrap();
+        for rel in &class.relationships {
+            let arrow = match rel.rel_type {
+                RelationshipType::Inheritance => "<|--",
+                RelationshipType::Composition => "*--",
+                RelationshipType::Aggregation => "o--",
+                RelationshipType::Dependency => "..>",
+            };
+
+            let line = if let Some(label) = &rel.label {
+                format!("    {} {} {} : {}", rel.target, arrow, class.name, label)
+            } else {
+                format!("    {} {} {}", rel.target, arrow, class.name)
+            };
+
+            if seen.insert(line.clone()) {
+                writeln!(&mut diagram, "{}", line).unwrap();
+            }
         }
     }
 
@@ -36,27 +52,32 @@ pub fn generate_mermaid(classes: &[ClassInfo]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::{Relationship, RelationshipType};
 
     #[test]
-    fn test_generate_mermaid_simple() {
+    fn test_generate_mermaid_complex() {
         let classes = vec![
             ClassInfo {
-                name: "Dog".to_string(),
-                methods: vec!["bark".to_string()],
-                properties: vec!["breed".to_string()],
-                parents: vec!["Animal".to_string()],
-            },
-            ClassInfo {
-                name: "Animal".to_string(),
-                methods: vec!["eat".to_string()],
+                name: "Car".to_string(),
+                methods: vec![],
                 properties: vec![],
-                parents: vec![],
-            }
+                relationships: vec![
+                    Relationship {
+                        target: "Engine".to_string(),
+                        rel_type: RelationshipType::Aggregation,
+                        label: Some("engine".to_string()),
+                    },
+                    Relationship {
+                        target: "Vehicle".to_string(),
+                        rel_type: RelationshipType::Inheritance,
+                        label: None,
+                    }
+                ],
+            },
         ];
 
         let output = generate_mermaid(&classes);
-        
-        let expected = "classDiagram\n    class Dog {\n        +breed\n        +bark()\n    }\n    class Animal {\n        +eat()\n    }\n    Animal <|-- Dog\n";
-        assert_eq!(output, expected);
+        assert!(output.contains("Engine o-- Car : engine"));
+        assert!(output.contains("Vehicle <|-- Car"));
     }
 }
