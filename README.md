@@ -22,7 +22,14 @@ Marco is a high-performance CLI tool written in **Rust** that scans your codebas
 - [Rust & Cargo](https://rustup.rs/) installed.
 
 ### Installation
-You can build from source:
+
+You can install `marco-polo` directly from [crates.io](https://crates.io/crates/marco-polo):
+
+```bash
+cargo install marco-polo
+```
+
+Alternatively, you can build from source:
 
 ```bash
 git clone https://github.com/wseabra/marco_polo.git
