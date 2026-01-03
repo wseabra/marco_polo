@@ -51,8 +51,8 @@ cargo test
 ## 📝 Development Notes
 
 - **File Discovery**: The scanner currently filters for specific extensions (e.g., `["py"]`) and respects `.gitignore`.
-- **Parsing Status**: Dependencies are installed (`tree-sitter`), but the parsing logic implementation is the next immediate roadmap item.
-- **Output**: Currently prints found files to stdout. Future goal is to generate `.mmd` (Mermaid) files.
+- **Parsing Status**: Parsing logic is implemented for Python using `tree-sitter`.
+- **Output**: Generates `.mmd` (Mermaid) files to a specified output path.
 
 ## 🤝 Contribution Guidelines
 
