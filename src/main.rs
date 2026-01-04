@@ -2,6 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 use anyhow::Result;
 use std::fs;
+use crate::models::Visibility;
 
 mod models;
 mod scanner;
@@ -22,6 +23,10 @@ struct Args {
     /// File extensions to include (comma-separated)
     #[arg(short, long, value_delimiter = ',', default_value = "py,java,cpp")]
     extensions: Vec<String>,
+
+    /// Visibility levels to include (comma-separated: public,protected,private)
+    #[arg(short, long, value_delimiter = ',', default_value = "public")]
+    visibility: Vec<String>,
 }
 
 fn main() -> Result<()> {
@@ -51,10 +56,19 @@ fn main() -> Result<()> {
 
     eprintln!("Extracted {} classes.", all_classes.len());
 
-    // 3. Generate Diagram
-    let diagram = mermaid::generate_mermaid(&all_classes);
+    // 3. Map Visibility Strings to Enum
+    let enabled_visibilities: Vec<Visibility> = args.visibility.iter()
+        .map(|v| match v.to_lowercase().as_str() {
+            "protected" => Visibility::Protected,
+            "private" => Visibility::Private,
+            _ => Visibility::Public,
+        })
+        .collect();
 
-    // 4. Write Output
+    // 4. Generate Diagram
+    let diagram = mermaid::generate_mermaid(&all_classes, &enabled_visibilities);
+
+    // 5. Write Output
     fs::write(&args.output, diagram)?;
     eprintln!("Successfully wrote Mermaid diagram to {:?}", args.output);
 
