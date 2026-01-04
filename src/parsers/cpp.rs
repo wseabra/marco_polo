@@ -61,7 +61,7 @@ impl LanguageParser for CppParser {
                         "field_declaration" => {
                             // First check if this is actually a method (e.g., pure virtual or function pointer)
                             if let Some(declarator) = child.child_by_field_name("declarator") {
-                                if find_function_declarator(declarator).is_some() {
+                                if let Some(func_decl) = find_function_declarator(declarator) {
                                     // Treat as method
                                     if let Some(name_node) = find_node_by_kind(declarator, "field_identifier")
                                         .or_else(|| find_node_by_kind(declarator, "identifier")) {
@@ -69,10 +69,8 @@ impl LanguageParser for CppParser {
                                         methods.push(method_name.clone());
                                         
                                         // Extract parameter types for dependency relationships
-                                        if let Some(func_decl) = find_function_declarator(declarator) {
-                                            if let Some(params) = find_node_by_kind(func_decl, "parameter_list") {
-                                                extract_parameter_types(params, content, &mut relationships);
-                                            }
+                                        if let Some(params) = find_node_by_kind(func_decl, "parameter_list") {
+                                            extract_parameter_types(params, content, &mut relationships);
                                         }
 
                                         // Extract return type for dependency
@@ -427,7 +425,7 @@ class Handler {
 };
 ";
         let classes = CppParser.parse(content)?;
-        let handler = classes.iter().find(|c| c.name == "Handler").unwrap();
+        let handler = classes.iter().find(|c| c.name == "Handler").expect("Class 'Handler' not found");
         // Should find dependency on 'Dependency'
         assert!(handler.relationships.iter().any(|r| r.target == "Dependency" && r.rel_type == RelationshipType::Dependency));
         Ok(())
@@ -442,7 +440,7 @@ class Handler2 {
 };
 ";
         let classes = CppParser.parse(content)?;
-        let handler2 = classes.iter().find(|c| c.name == "Handler2").unwrap();
+        let handler2 = classes.iter().find(|c| c.name == "Handler2").expect("Class 'Handler2' not found");
         assert!(handler2.relationships.iter().any(|r| r.target == "ReturnType" && r.rel_type == RelationshipType::Dependency));
         Ok(())
     }
