@@ -58,10 +58,15 @@ fn main() -> Result<()> {
 
     // 3. Map Visibility Strings to Enum
     let enabled_visibilities: Vec<Visibility> = args.visibility.iter()
-        .map(|v| match v.to_lowercase().as_str() {
-            "protected" => Visibility::Protected,
-            "private" => Visibility::Private,
-            _ => Visibility::Public,
+        .filter_map(|v| match v.to_lowercase().as_str() {
+            "public" => Some(Visibility::Public),
+            "protected" => Some(Visibility::Protected),
+            "private" => Some(Visibility::Private),
+            "internal" => Some(Visibility::Internal),
+            other => {
+                eprintln!("Warning: Ignoring unknown visibility level '{}'", other);
+                None
+            }
         })
         .collect();
 

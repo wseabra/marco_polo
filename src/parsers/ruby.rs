@@ -80,12 +80,10 @@ impl LanguageParser for RubyParser {
                             if let Some(name_node) = child.child_by_field_name("name") {
                                 let m_name = get_node_text(name_node, content);
                                 
-                                if !m_name.starts_with('_') {
-                                    methods.push(MethodInfo {
-                                        name: m_name.clone(),
-                                        visibility: current_visibility,
-                                    });
-                                }
+                                methods.push(MethodInfo {
+                                    name: m_name.clone(),
+                                    visibility: current_visibility,
+                                });
                                 
                                 // Heuristic: Check parameters for relationships
                                 if let Some(params) = child.child_by_field_name("parameters") {
@@ -93,19 +91,25 @@ impl LanguageParser for RubyParser {
                                     for param in params.children(&mut p_cursor) {
                                         if param.kind() == "identifier" {
                                             let p_text = get_node_text(param, content);
-                                            let target = to_pascal_case(&p_text);
                                             
-                                            if !is_ruby_builtin(&target) {
-                                                let rel_type = if m_name == "initialize" {
-                                                    RelationshipType::Aggregation
-                                                } else {
-                                                    RelationshipType::Dependency
-                                                };
-                                                relationships.push(Relationship {
-                                                    target,
-                                                    rel_type,
-                                                    label: Some(p_text.clone()),
-                                                });
+                                            // A simple blocklist to avoid creating relationships for common non-class parameter names.
+                                            const IGNORED_PARAMS: &[&str] = &["name", "age", "id", "count", "size", "length", "width", "height", "index", "key", "value", "message", "text"];
+
+                                            if !IGNORED_PARAMS.contains(&p_text.as_str()) {
+                                                let target = to_pascal_case(&p_text);
+                                                
+                                                if !is_ruby_builtin(&target) {
+                                                    let rel_type = if m_name == "initialize" {
+                                                        RelationshipType::Aggregation
+                                                    } else {
+                                                        RelationshipType::Dependency
+                                                    };
+                                                    relationships.push(Relationship {
+                                                        target,
+                                                        rel_type,
+                                                        label: Some(p_text.clone()),
+                                                    });
+                                                }
                                             }
                                         }
                                     }
@@ -195,9 +199,8 @@ fn is_ruby_builtin(name: &str) -> bool {
 
 fn get_node_text(node: Node, content: &str) -> String {
     node.utf8_text(content.as_bytes())
-        .ok()
-        .unwrap_or("")
-        .to_string()
+        .map(str::to_string)
+        .unwrap_or_default()
 }
 
 fn to_pascal_case(s: &str) -> String {
