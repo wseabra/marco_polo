@@ -47,11 +47,26 @@ mod tests {
 
         // Should find at least `tests/cpp/Animals.cpp`.
         assert!(files.len() >= 1, "Should find at least one .cpp file");
-        assert!(
-            files.iter().any(|p| p.ends_with("tests/cpp/Animals.cpp")),
-            "The found files should include Animals.cpp"
-        );
-
-        Ok(())
-    }
-}
+                assert!(
+                    files.iter().any(|p| p.ends_with("tests/cpp/Animals.cpp")),
+                    "The found files should include Animals.cpp"
+                );
+        
+                Ok(())
+            }
+        
+            #[test]
+            fn test_find_ruby_files() -> Result<()> {
+                let root = Path::new("tests/ruby");
+                let files = find_source_files(root, &["rb"])?;
+        
+                assert!(files.len() >= 1, "Should find at least one .rb file");
+                assert!(
+                    files.iter().any(|p| p.ends_with("tests/ruby/animals.rb")),
+                    "The found files should include animals.rb"
+                );
+        
+                Ok(())
+            }
+        }
+        
