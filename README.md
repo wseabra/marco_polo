@@ -1,4 +1,4 @@
-# 🌍 Marco
+# 🌍 Marco Polo
 **A CLI Tool to Cartograph Codebases**
 
 Marco is a high-performance CLI tool written in **Rust** that scans your codebase and generates **Mermaid.js Class Diagrams**. It helps developers visualize structure, inheritance, and relationships in large projects quickly.
@@ -14,7 +14,7 @@ Marco is a high-performance CLI tool written in **Rust** that scans your codebas
   - [x] **Python**: Full support for classes and relationships.
   - [x] **Java**: Full support for classes, interfaces, and complex relationships.
   - [x] **C++**: Full support for classes and relationships.
-  - [ ] Ruby (Coming soon)
+  - [x] **Ruby**: Full support for classes, modules, and mixins.
   - [ ] TypeScript (Coming soon)
 
 ## 📊 Language Feature Support
@@ -60,7 +60,7 @@ marco-polo [OPTIONS] [PATH]
 
 **Options:**
 - `-o, --output <FILE>`: Output file path for the Mermaid diagram (default: `output.mmd`).
-- `-e, --extensions <EXT>`: Comma-separated list of file extensions to scan (default: `py,java,cpp`).
+- `-e, --extensions <EXT>`: Comma-separated list of file extensions to scan (default: `py,java,cpp,rb`).
 - `-v, --visibility <LEVELS>`: Comma-separated visibility levels to include (default: `public`). Options: `public`, `protected`, `private`, `internal`.
 - `-h, --help`: Print help information.
 

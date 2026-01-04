@@ -21,7 +21,7 @@ struct Args {
     output: PathBuf,
 
     /// File extensions to include (comma-separated)
-    #[arg(short, long, value_delimiter = ',', default_value = "py,java,cpp")]
+    #[arg(short, long, value_delimiter = ',', default_value = "py,java,cpp,rb")]
     extensions: Vec<String>,
 
     /// Visibility levels to include (comma-separated: public,protected,private,internal)

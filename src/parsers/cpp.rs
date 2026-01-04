@@ -76,17 +76,18 @@ impl LanguageParser for CppParser {
                     match child.kind() {
                         "access_specifier" => {
                             let text = get_node_text(child, content);
-                            if text.contains("public") {
-                                current_visibility = Visibility::Public;
-                            } else if text.contains("protected") {
-                                current_visibility = Visibility::Protected;
-                            } else if text.contains("private") {
-                                current_visibility = Visibility::Private;
-                            }
+                            let keyword = text.trim_matches(':').trim();
+                            current_visibility = match keyword {
+                                "public" => Visibility::Public,
+                                "protected" => Visibility::Protected,
+                                "private" => Visibility::Private,
+                                _ => current_visibility,
+                            };
                         }
                         "field_declaration" => {
                             if let Some(declarator) = child.child_by_field_name("declarator") {
-                                if find_function_declarator(declarator).is_some() {
+                                if let Some(func_decl) = find_function_declarator(declarator) {
+                                    // Treat as method
                                     if let Some(name_node) = find_node_by_kind(declarator, "field_identifier")
                                         .or_else(|| find_node_by_kind(declarator, "identifier")) {
                                         let method_name = get_node_text(name_node, content);
@@ -94,6 +95,15 @@ impl LanguageParser for CppParser {
                                             name: method_name,
                                             visibility: current_visibility,
                                         });
+                                        
+                                        // Extract parameter types for dependency relationships
+                                        if let Some(params) = find_node_by_kind(func_decl, "parameter_list") {
+                                            extract_parameter_types(params, content, &mut relationships);
+                                        }
+
+                                        // Extract return type for dependency
+                                        extract_return_type(child, content, &mut relationships);
+
                                         continue;
                                     }
                                 }
@@ -445,6 +455,35 @@ public:
         assert!(admin.relationships.iter().any(|r| r.target == "Loggable" && r.rel_type == RelationshipType::Inheritance));
         Ok(())
     }
-}
 
-    
+    #[test]
+    fn test_parse_function_pointer_parameter_dependency() -> Result<()> {
+        let content = "
+class Dependency {};
+
+class Handler {
+    // Function pointer field
+    void (*callback)(Dependency* d);
+};
+";
+        let classes = CppParser.parse(content)?;
+        let handler = classes.iter().find(|c| c.name == "Handler").expect("Class 'Handler' not found");
+        // Should find dependency on 'Dependency'
+        assert!(handler.relationships.iter().any(|r| r.target == "Dependency" && r.rel_type == RelationshipType::Dependency));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_function_pointer_return_type_dependency() -> Result<()> {
+        let content = "
+class ReturnType {};
+class Handler2 {
+    ReturnType* (*callback)();
+};
+";
+        let classes = CppParser.parse(content)?;
+        let handler2 = classes.iter().find(|c| c.name == "Handler2").expect("Class 'Handler2' not found");
+        assert!(handler2.relationships.iter().any(|r| r.target == "ReturnType" && r.rel_type == RelationshipType::Dependency));
+        Ok(())
+    }
+}

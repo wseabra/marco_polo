@@ -188,10 +188,12 @@ impl LanguageParser for PythonParser {
                             // Python specific: special methods are treated as private/hidden usually
                             // but for class diagram we might want to show them if they aren't __init__
                             // Following the rule: only show if not starting with _ (unless requested)
-                            methods.push(MethodInfo {
-                                name: method_name,
-                                visibility,
-                            });
+                            if method_name != "__init__" {
+                                methods.push(MethodInfo {
+                                    name: method_name,
+                                    visibility,
+                                });
+                            }
                         }
                     }
                 }

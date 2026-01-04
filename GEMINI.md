@@ -15,9 +15,11 @@ The project follows a standard Rust binary structure:
     - **`mod.rs`**: Defines the `LanguageParser` trait and factory.
     - **`python.rs`**: Python implementation using tree-sitter.
     - **`java.rs`**: Java implementation using tree-sitter.
+    - **`ruby.rs`**: Ruby implementation using tree-sitter.
 - **`tests/`**: Integration and unit test resources.
   - **`python/`**: Sample Python files.
   - **`java/`**: Sample Java files.
+  - **`ruby/`**: Sample Ruby files.
 
 ## 🛠️ Tech Stack & Key Dependencies
 
@@ -30,6 +32,7 @@ The project follows a standard Rust binary structure:
   - [`tree-sitter-python`](https://crates.io/crates/tree-sitter-python)
   - [`tree-sitter-java`](https://crates.io/crates/tree-sitter-java)
   - [`tree-sitter-cpp`](https://crates.io/crates/tree-sitter-cpp)
+  - [`tree-sitter-ruby`](https://crates.io/crates/tree-sitter-ruby)
 
 ## 🚀 Building and Running
 
@@ -48,7 +51,7 @@ marco .
 # OR
 cargo run -- /path/to/codebase
 ```
-*Default output matches `.py`, `.java`, and `.cpp` files found in the target directory.*
+*Default output matches `.py`, `.java`, `.cpp`, and `.rb` files found in the target directory.*
 
 ### Test
 Run the test suite:
@@ -58,8 +61,8 @@ cargo test
 
 ## 📝 Development Notes
 
-- **File Discovery**: The scanner filters for specific extensions (default: `["py", "java", "cpp"]`) and respects `.gitignore`.
-- **Parsing Status**: Parsing logic is implemented for Python, Java, and C++ using `tree-sitter`.
+- **File Discovery**: The scanner filters for specific extensions (default: `["py", "java", "cpp", "rb"]`) and respects `.gitignore`.
+- **Parsing Status**: Parsing logic is implemented for Python, Java, C++, and Ruby using `tree-sitter`.
     - **Visibility**: Supports `public`, `protected`, `private`, and `internal` (language-specific heuristics).
     - **Namespaces**: Detects nested classes and namespaces/packages.
     - **Relationships**: Detects inheritance, composition, aggregation, and dependency with automated labels.
