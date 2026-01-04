@@ -68,7 +68,16 @@ impl LanguageParser for CppParser {
                                         let method_name = get_node_text(name_node, content);
                                         methods.push(method_name.clone());
                                         
-                                        // TODO: Extract params for dependencies if needed (similar to function_definition)
+                                        // Extract parameter types for dependency relationships
+                                        if let Some(func_decl) = find_function_declarator(declarator) {
+                                            if let Some(params) = find_node_by_kind(func_decl, "parameter_list") {
+                                                extract_parameter_types(params, content, &mut relationships);
+                                            }
+                                        }
+
+                                        // Extract return type for dependency
+                                        extract_return_type(child, content, &mut relationships);
+
                                         continue;
                                     }
                                 }
@@ -404,6 +413,35 @@ public:
         let admin = classes.iter().find(|c| c.name == "Admin").unwrap();
         assert!(admin.relationships.iter().any(|r| r.target == "Auth" && r.rel_type == RelationshipType::Inheritance));
         assert!(admin.relationships.iter().any(|r| r.target == "Loggable" && r.rel_type == RelationshipType::Inheritance));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_function_pointer_field_dependency() -> Result<()> {
+        let content = "
+class Dependency {};
+
+class Handler {
+    // Function pointer field
+    void (*callback)(Dependency* d);
+};
+";
+        let classes = CppParser.parse(content)?;
+        let handler = classes.iter().find(|c| c.name == "Handler").unwrap();
+        // Should find dependency on 'Dependency'
+        assert!(handler.relationships.iter().any(|r| r.target == "Dependency" && r.rel_type == RelationshipType::Dependency));
+
+        // Also check if return type is captured if it was not void
+        let content2 = "
+class ReturnType {};
+class Handler2 {
+    ReturnType* (*callback)();
+};
+";
+        let classes2 = CppParser.parse(content2)?;
+        let handler2 = classes2.iter().find(|c| c.name == "Handler2").unwrap();
+        assert!(handler2.relationships.iter().any(|r| r.target == "ReturnType" && r.rel_type == RelationshipType::Dependency));
+
         Ok(())
     }
 }
