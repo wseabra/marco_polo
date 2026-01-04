@@ -330,236 +330,121 @@ private:
         Ok(())
     }
 
-        #[test]
-
-        fn test_cpp_namespace() -> Result<()> {
-
-            let content = "
-
-    namespace UI {
-
-        class Button {};
-
+    #[test]
+    fn test_cpp_namespace() -> Result<()> {
+        let content = "
+namespace UI {
+    class Button {};
+}
+";
+        let classes = CppParser.parse(content)?;
+        assert_eq!(classes[0].name, "UI::Button");
+        Ok(())
     }
 
-    ";
-
-            let classes = CppParser.parse(content)?;
-
-            assert_eq!(classes[0].name, "UI::Button");
-
-            Ok(())
-
-        }
-
-    
-
-        #[test]
-
-        fn test_parse_simple_class() -> Result<()> {
-
-            let content = "
-
-    class Animal {
-
-    public:
-
-        std::string name;
-
-        void speak() {}
-
-    };
-
-    ";
-
-            let classes = CppParser.parse(content)?;
-
-            assert_eq!(classes.len(), 1);
-
-            let animal = &classes[0];
-
-            assert_eq!(animal.name, "Animal");
-
-            assert!(animal.properties.iter().any(|p| p.name == "name"));
-
-            assert!(animal.methods.iter().any(|m| m.name == "speak"));
-
-            Ok(())
-
-        }
-
-    
-
-        #[test]
-
-        fn test_parse_inheritance() -> Result<()> {
-
-            let content = "
-
-    class Animal {
-
-    public:
-
-        void speak() {}
-
-    };
-
-    
-
-    class Dog : public Animal {
-
-    public:
-
-        void bark() {}
-
-    };
-
-    ";
-
-            let classes = CppParser.parse(content)?;
-
-            assert_eq!(classes.len(), 2);
-
-            let dog = classes.iter().find(|c| c.name == "Dog").unwrap();
-
-            assert!(dog.relationships.iter().any(|r| r.target == "Animal" && r.rel_type == RelationshipType::Inheritance));
-
-            Ok(())
-
-        }
-
-    
-
-        #[test]
-
-        fn test_parse_composition() -> Result<()> {
-
-            let content = "
-
-    class Door {};
-
-    
-
-    class House {
-
-    private:
-
-        Door door;
-
-    };
-
-    ";
-
-            let classes = CppParser.parse(content)?;
-
-            let house = classes.iter().find(|c| c.name == "House").unwrap();
-
-            assert!(house.relationships.iter().any(|r| r.target == "Door" && r.rel_type == RelationshipType::Composition));
-
-            Ok(())
-
-        }
-
-    
-
-        #[test]
-
-        fn test_parse_aggregation() -> Result<()> {
-
-            let content = "
-
-    class Engine {};
-
-    
-
-    class Car {
-
-    private:
-
-        Engine* engine;
-
-    };
-
-    ";
-
-            let classes = CppParser.parse(content)?;
-
-            let car = classes.iter().find(|c| c.name == "Car").unwrap();
-
-            assert!(car.relationships.iter().any(|r| r.target == "Engine" && r.rel_type == RelationshipType::Aggregation));
-
-            Ok(())
-
-        }
-
-    
-
-        #[test]
-
-        fn test_parse_dependency() -> Result<()> {
-
-            let content = "
-
-    class Post {};
-
-    
-
-    class Admin {
-
-    public:
-
-        void deletePost(Post* post) {}
-
-    };
-
-    ";
-
-            let classes = CppParser.parse(content)?;
-
-            let admin = classes.iter().find(|c| c.name == "Admin").unwrap();
-
-            assert!(admin.relationships.iter().any(|r| r.target == "Post" && r.rel_type == RelationshipType::Dependency));
-
-            Ok(())
-
-        }
-
-    
-
-        #[test]
-
-        fn test_parse_multiple_inheritance() -> Result<()> {
-
-            let content = "
-
-    class Auth {};
-
-    class Loggable {};
-
-    
-
-    class Admin : public Auth, public Loggable {
-
-    public:
-
-        void log() {}
-
-    };
-
-    ";
-
-            let classes = CppParser.parse(content)?;
-
-            let admin = classes.iter().find(|c| c.name == "Admin").unwrap();
-
-            assert!(admin.relationships.iter().any(|r| r.target == "Auth" && r.rel_type == RelationshipType::Inheritance));
-
-            assert!(admin.relationships.iter().any(|r| r.target == "Loggable" && r.rel_type == RelationshipType::Inheritance));
-
-            Ok(())
-
-        }
-
+    #[test]
+    fn test_parse_simple_class() -> Result<()> {
+        let content = "
+class Animal {
+public:
+    std::string name;
+    void speak() {}
+};
+";
+        let classes = CppParser.parse(content)?;
+        assert_eq!(classes.len(), 1);
+        let animal = &classes[0];
+        assert_eq!(animal.name, "Animal");
+        assert!(animal.properties.iter().any(|p| p.name == "name"));
+        assert!(animal.methods.iter().any(|m| m.name == "speak"));
+        Ok(())
     }
+
+    #[test]
+    fn test_parse_inheritance() -> Result<()> {
+        let content = "
+class Animal {
+public:
+    void speak() {}
+};
+
+class Dog : public Animal {
+public:
+    void bark() {}
+};
+";
+        let classes = CppParser.parse(content)?;
+        assert_eq!(classes.len(), 2);
+        let dog = classes.iter().find(|c| c.name == "Dog").unwrap();
+        assert!(dog.relationships.iter().any(|r| r.target == "Animal" && r.rel_type == RelationshipType::Inheritance));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_composition() -> Result<()> {
+        let content = "
+class Door {};
+
+class House {
+private:
+    Door door;
+};
+";
+        let classes = CppParser.parse(content)?;
+        let house = classes.iter().find(|c| c.name == "House").unwrap();
+        assert!(house.relationships.iter().any(|r| r.target == "Door" && r.rel_type == RelationshipType::Composition));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_aggregation() -> Result<()> {
+        let content = "
+class Engine {};
+
+class Car {
+private:
+    Engine* engine;
+};
+";
+        let classes = CppParser.parse(content)?;
+        let car = classes.iter().find(|c| c.name == "Car").unwrap();
+        assert!(car.relationships.iter().any(|r| r.target == "Engine" && r.rel_type == RelationshipType::Aggregation));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_dependency() -> Result<()> {
+        let content = "
+class Post {};
+
+class Admin {
+public:
+    void deletePost(Post* post) {}
+};
+";
+        let classes = CppParser.parse(content)?;
+        let admin = classes.iter().find(|c| c.name == "Admin").unwrap();
+        assert!(admin.relationships.iter().any(|r| r.target == "Post" && r.rel_type == RelationshipType::Dependency));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_multiple_inheritance() -> Result<()> {
+        let content = "
+class Auth {};
+class Loggable {};
+
+class Admin : public Auth, public Loggable {
+public:
+    void log() {}
+};
+";
+        let classes = CppParser.parse(content)?;
+        let admin = classes.iter().find(|c| c.name == "Admin").unwrap();
+        assert!(admin.relationships.iter().any(|r| r.target == "Auth" && r.rel_type == RelationshipType::Inheritance));
+        assert!(admin.relationships.iter().any(|r| r.target == "Loggable" && r.rel_type == RelationshipType::Inheritance));
+        Ok(())
+    }
+}
 
     

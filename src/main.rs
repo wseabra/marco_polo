@@ -24,9 +24,9 @@ struct Args {
     #[arg(short, long, value_delimiter = ',', default_value = "py,java,cpp")]
     extensions: Vec<String>,
 
-    /// Visibility levels to include (comma-separated: public,protected,private)
-    #[arg(short, long, value_delimiter = ',', default_value = "public")]
-    visibility: Vec<String>,
+    /// Visibility levels to include (comma-separated: public,protected,private,internal)
+    #[arg(short, long, value_delimiter = ',', default_values_t = vec![Visibility::Public])]
+    visibility: Vec<Visibility>,
 }
 
 fn main() -> Result<()> {
@@ -56,17 +56,8 @@ fn main() -> Result<()> {
 
     eprintln!("Extracted {} classes.", all_classes.len());
 
-    // 3. Map Visibility Strings to Enum
-    let enabled_visibilities: Vec<Visibility> = args.visibility.iter()
-        .map(|v| match v.to_lowercase().as_str() {
-            "protected" => Visibility::Protected,
-            "private" => Visibility::Private,
-            _ => Visibility::Public,
-        })
-        .collect();
-
-    // 4. Generate Diagram
-    let diagram = mermaid::generate_mermaid(&all_classes, &enabled_visibilities);
+    // 3. Generate Diagram
+    let diagram = mermaid::generate_mermaid(&all_classes, &args.visibility);
 
     // 5. Write Output
     fs::write(&args.output, diagram)?;

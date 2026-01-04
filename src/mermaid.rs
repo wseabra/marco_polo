@@ -13,12 +13,7 @@ pub fn generate_mermaid(classes: &[ClassInfo], enabled_visibilities: &[Visibilit
         // Properties
         for prop in &class.properties {
             if enabled_visibilities.contains(&prop.visibility) {
-                let symbol = match prop.visibility {
-                    Visibility::Public => "+",
-                    Visibility::Protected => "#",
-                    Visibility::Private => "-",
-                    Visibility::Internal => "~",
-                };
+                let symbol = visibility_symbol(&prop.visibility);
                 writeln!(&mut diagram, "        {}{}", symbol, prop.name).unwrap();
             }
         }
@@ -26,12 +21,7 @@ pub fn generate_mermaid(classes: &[ClassInfo], enabled_visibilities: &[Visibilit
         // Methods
         for method in &class.methods {
             if enabled_visibilities.contains(&method.visibility) {
-                let symbol = match method.visibility {
-                    Visibility::Public => "+",
-                    Visibility::Protected => "#",
-                    Visibility::Private => "-",
-                    Visibility::Internal => "~",
-                };
+                let symbol = visibility_symbol(&method.visibility);
                 writeln!(&mut diagram, "        {}{}()", symbol, method.name).unwrap();
             }
         }
@@ -63,6 +53,15 @@ pub fn generate_mermaid(classes: &[ClassInfo], enabled_visibilities: &[Visibilit
     }
 
     diagram
+}
+
+fn visibility_symbol(visibility: &Visibility) -> &'static str {
+    match visibility {
+        Visibility::Public => "+",
+        Visibility::Protected => "#",
+        Visibility::Private => "-",
+        Visibility::Internal => "~",
+    }
 }
 
 #[cfg(test)]
