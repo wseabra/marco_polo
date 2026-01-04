@@ -1,8 +1,8 @@
-use crate::models::{ClassInfo, RelationshipType};
+use crate::models::{ClassInfo, RelationshipType, Visibility};
 use std::fmt::Write;
 use std::collections::HashSet;
 
-pub fn generate_mermaid(classes: &[ClassInfo]) -> String {
+pub fn generate_mermaid(classes: &[ClassInfo], enabled_visibilities: &[Visibility]) -> String {
     let mut diagram = String::new();
     writeln!(&mut diagram, "classDiagram").unwrap();
 
@@ -12,12 +12,28 @@ pub fn generate_mermaid(classes: &[ClassInfo]) -> String {
         
         // Properties
         for prop in &class.properties {
-            writeln!(&mut diagram, "        +{}", prop).unwrap();
+            if enabled_visibilities.contains(&prop.visibility) {
+                let symbol = match prop.visibility {
+                    Visibility::Public => "+",
+                    Visibility::Protected => "#",
+                    Visibility::Private => "-",
+                    Visibility::Internal => "~",
+                };
+                writeln!(&mut diagram, "        {}{}", symbol, prop.name).unwrap();
+            }
         }
 
         // Methods
         for method in &class.methods {
-            writeln!(&mut diagram, "        +{}()", method).unwrap();
+            if enabled_visibilities.contains(&method.visibility) {
+                let symbol = match method.visibility {
+                    Visibility::Public => "+",
+                    Visibility::Protected => "#",
+                    Visibility::Private => "-",
+                    Visibility::Internal => "~",
+                };
+                writeln!(&mut diagram, "        {}{}()", symbol, method.name).unwrap();
+            }
         }
 
         writeln!(&mut diagram, "    }}").unwrap();
@@ -52,15 +68,20 @@ pub fn generate_mermaid(classes: &[ClassInfo]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Relationship, RelationshipType};
+    use crate::models::{Relationship, RelationshipType, MethodInfo, PropertyInfo};
 
     #[test]
     fn test_generate_mermaid_complex() {
         let classes = vec![
             ClassInfo {
                 name: "Car".to_string(),
-                methods: vec![],
-                properties: vec![],
+                methods: vec![
+                    MethodInfo { name: "drive".to_string(), visibility: Visibility::Public },
+                    MethodInfo { name: "service".to_string(), visibility: Visibility::Private },
+                ],
+                properties: vec![
+                    PropertyInfo { name: "engine".to_string(), visibility: Visibility::Public },
+                ],
                 relationships: vec![
                     Relationship {
                         target: "Engine".to_string(),
@@ -76,7 +97,12 @@ mod tests {
             },
         ];
 
-        let output = generate_mermaid(&classes);
+        let enabled = vec![Visibility::Public];
+        let output = generate_mermaid(&classes, &enabled);
+        
+        assert!(output.contains("+drive()"));
+        assert!(!output.contains("-service()"));
+        assert!(output.contains("+engine"));
         assert!(output.contains("Engine o-- Car : engine"));
         assert!(output.contains("Vehicle <|-- Car"));
     }

@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 use tree_sitter::{Parser, Query, QueryCursor, Node};
-use crate::models::{ClassInfo, Relationship, RelationshipType};
+use crate::models::{ClassInfo, Relationship, RelationshipType, Visibility, MethodInfo, PropertyInfo};
 use anyhow::{Result, Context};
 use super::LanguageParser;
 
@@ -40,9 +40,19 @@ impl LanguageParser for JavaParser {
         for m in matches {
             let class_node = m.captures[0].node;
             
-            let name = class_node.child_by_field_name("name")
-                .map(|n| get_node_text(n, content))
-                .unwrap_or_else(|| "Anonymous".to_string());
+            // Extract Full Name (Namespace Aware)
+            let mut name_parts = Vec::new();
+            let mut curr = Some(class_node);
+            while let Some(n) = curr {
+                if n.kind() == "class_declaration" || n.kind() == "interface_declaration" {
+                    if let Some(name_node) = n.child_by_field_name("name") {
+                        name_parts.push(get_node_text(name_node, content));
+                    }
+                }
+                curr = n.parent();
+            }
+            name_parts.reverse();
+            let full_name = name_parts.join(".");
 
             let mut methods = Vec::new();
             let mut properties = Vec::new();
@@ -65,19 +75,22 @@ impl LanguageParser for JavaParser {
                 for child in body_node.children(&mut cursor) {
                     match child.kind() {
                         "field_declaration" => {
+                            let visibility = get_java_visibility(child, content);
                             let type_node = child.child_by_field_name("type");
                             let mut cursor = child.walk();
                             for field_child in child.children(&mut cursor) {
                                 if field_child.kind() == "variable_declarator" {
                                     if let Some(name_node) = field_child.child_by_field_name("name") {
                                         let field_name = get_node_text(name_node, content);
-                                        properties.push(field_name.clone());
+                                        properties.push(PropertyInfo {
+                                            name: field_name.clone(),
+                                            visibility,
+                                        });
 
                                         if let Some(t_node) = type_node {
                                             let mut resolved = Vec::new();
                                             resolve_java_types(t_node, content, &mut resolved);
                                             
-                                            // Check for Composition (new instantiation)
                                             let is_composition = field_child.child_by_field_name("value")
                                                 .map(|v| v.kind() == "object_creation_expression")
                                                 .unwrap_or(false);
@@ -103,8 +116,13 @@ impl LanguageParser for JavaParser {
                         "method_declaration" | "constructor_declaration" => {
                             if let Some(name_node) = child.child_by_field_name("name") {
                                 let method_name = get_node_text(name_node, content);
+                                let visibility = get_java_visibility(child, content);
+                                
                                 if child.kind() == "method_declaration" {
-                                    methods.push(method_name);
+                                    methods.push(MethodInfo {
+                                        name: method_name,
+                                        visibility,
+                                    });
                                 }
 
                                 // Parameters for Dependency/Aggregation
@@ -152,7 +170,7 @@ impl LanguageParser for JavaParser {
             }
 
             classes.push(ClassInfo {
-                name,
+                name: full_name,
                 methods,
                 properties,
                 relationships,
@@ -161,6 +179,23 @@ impl LanguageParser for JavaParser {
 
         Ok(classes)
     }
+}
+
+fn get_java_visibility(node: Node, content: &str) -> Visibility {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "modifiers" {
+            let text = get_node_text(child, content);
+            if text.contains("public") {
+                return Visibility::Public;
+            } else if text.contains("protected") {
+                return Visibility::Protected;
+            } else if text.contains("private") {
+                return Visibility::Private;
+            }
+        }
+    }
+    Visibility::Internal
 }
 
 fn extract_inheritance(node: Node, content: &str, relationships: &mut Vec<Relationship>) {
@@ -220,6 +255,49 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_parse_java_visibility() -> Result<()> {
+        let content = "
+public class User {
+    private String name;
+    protected int age;
+    public void speak() {}
+    void internal() {}
+}
+";
+        let classes = JavaParser.parse(content)?;
+        let user = &classes[0];
+        
+        let name = user.properties.iter().find(|p| p.name == "name").unwrap();
+        assert_eq!(name.visibility, Visibility::Private);
+
+        let age = user.properties.iter().find(|p| p.name == "age").unwrap();
+        assert_eq!(age.visibility, Visibility::Protected);
+
+        let speak = user.methods.iter().find(|m| m.name == "speak").unwrap();
+        assert_eq!(speak.visibility, Visibility::Public);
+
+        let internal = user.methods.iter().find(|m| m.name == "internal").unwrap();
+        assert_eq!(internal.visibility, Visibility::Internal);
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_nested_java() -> Result<()> {
+        let content = "
+class Outer {
+    class Inner {}
+}
+";
+        let classes = JavaParser.parse(content)?;
+        assert_eq!(classes.len(), 2);
+        let names: Vec<_> = classes.iter().map(|c| &c.name).collect();
+        assert!(names.contains(&&"Outer".to_string()));
+        assert!(names.contains(&&"Outer.Inner".to_string()));
+        Ok(())
+    }
+
+    #[test]
     fn test_inspect_interface_tree() {
         let content = "public interface D extends A, B, C {}";
         let mut parser = Parser::new();
@@ -251,8 +329,8 @@ public class User {
         assert_eq!(classes.len(), 1);
         let user = &classes[0];
         assert_eq!(user.name, "User");
-        assert!(user.properties.contains(&"name".to_string()));
-        assert!(user.methods.contains(&"speak".to_string()));
+        assert!(user.properties.iter().any(|p| p.name == "name"));
+        assert!(user.methods.iter().any(|m| m.name == "speak"));
         Ok(())
     }
 

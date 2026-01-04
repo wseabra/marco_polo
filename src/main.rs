@@ -2,6 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 use anyhow::Result;
 use std::fs;
+use crate::models::Visibility;
 
 mod models;
 mod scanner;
@@ -20,8 +21,12 @@ struct Args {
     output: PathBuf,
 
     /// File extensions to include (comma-separated)
-    #[arg(short, long, value_delimiter = ',', default_value = "py,java,cpp")]
+    #[arg(short, long, value_delimiter = ',', default_value = "py,java,cpp,rb")]
     extensions: Vec<String>,
+
+    /// Visibility levels to include (comma-separated: public,protected,private)
+    #[arg(short, long, value_delimiter = ',', default_value = "public")]
+    visibility: Vec<String>,
 }
 
 fn main() -> Result<()> {
@@ -51,10 +56,24 @@ fn main() -> Result<()> {
 
     eprintln!("Extracted {} classes.", all_classes.len());
 
-    // 3. Generate Diagram
-    let diagram = mermaid::generate_mermaid(&all_classes);
+    // 3. Map Visibility Strings to Enum
+    let enabled_visibilities: Vec<Visibility> = args.visibility.iter()
+        .filter_map(|v| match v.to_lowercase().as_str() {
+            "public" => Some(Visibility::Public),
+            "protected" => Some(Visibility::Protected),
+            "private" => Some(Visibility::Private),
+            "internal" => Some(Visibility::Internal),
+            other => {
+                eprintln!("Warning: Ignoring unknown visibility level '{}'", other);
+                None
+            }
+        })
+        .collect();
 
-    // 4. Write Output
+    // 4. Generate Diagram
+    let diagram = mermaid::generate_mermaid(&all_classes, &enabled_visibilities);
+
+    // 5. Write Output
     fs::write(&args.output, diagram)?;
     eprintln!("Successfully wrote Mermaid diagram to {:?}", args.output);
 
