@@ -52,8 +52,12 @@ impl LanguageParser for RubyParser {
             let mut superclass = None;
             if entity_node.kind() == "class" {
                 if let Some(super_node) = entity_node.child_by_field_name("superclass") {
-                    if let Some(const_node) = super_node.child(1) { // class < Super (index 1 is the superclass)
-                         superclass = Some(get_node_text(const_node, content));
+                    let mut super_cursor = super_node.walk();
+                    for child in super_node.children(&mut super_cursor) {
+                        if child.kind() == "constant" || child.kind() == "scope_resolution" {
+                            superclass = Some(get_node_text(child, content));
+                            break;
+                        }
                     }
                 }
             }
@@ -135,13 +139,30 @@ impl LanguageParser for RubyParser {
 
                             match cmd.as_str() {
                                 "private" | "protected" | "public" => {
-                                    let has_args = child.child_by_field_name("arguments").is_some();
-                                    if !has_args {
-                                        current_visibility = match cmd.as_str() {
-                                            "private" => Visibility::Private,
-                                            "protected" => Visibility::Protected,
-                                            _ => Visibility::Public,
-                                        };
+                                    let new_visibility = match cmd.as_str() {
+                                        "private" => Visibility::Private,
+                                        "protected" => Visibility::Protected,
+                                        _ => Visibility::Public,
+                                    };
+
+                                    if let Some(args) = child.child_by_field_name("arguments") {
+                                        // Handles `private :foo, :bar`
+                                        let mut arg_cursor = args.walk();
+                                        for arg in args.children(&mut arg_cursor) {
+                                            // Arguments can be symbols or strings
+                                            let method_name = match arg.kind() {
+                                                "symbol" => get_node_text(arg, content).trim_start_matches(':').to_string(),
+                                                "string" => get_node_text(arg, content).trim_matches('"').to_string(),
+                                                _ => continue,
+                                            };
+                                            
+                                            if let Some(method) = methods.iter_mut().find(|m| m.name == method_name) {
+                                                method.visibility = new_visibility;
+                                            }
+                                        }
+                                    } else {
+                                        // Handles block-style `private`
+                                        current_visibility = new_visibility;
                                     }
                                 }
                                 "attr_accessor" | "attr_reader" | "attr_writer" => {
