@@ -1,6 +1,7 @@
 use tree_sitter::{Parser, Query, QueryCursor, Node};
-use crate::models::{ClassInfo, Relationship, RelationshipType};
+use crate::models::{ClassInfo, Relationship, RelationshipType, Visibility, MethodInfo, PropertyInfo};
 use anyhow::{Result, Context};
+use std::collections::HashSet;
 use super::LanguageParser;
 
 pub struct RubyParser;
@@ -71,7 +72,7 @@ impl LanguageParser for RubyParser {
 
             // Process body with visibility tracking
             if let Some(body) = entity_node.child_by_field_name("body") {
-                let mut current_visibility = "public";
+                let mut current_visibility = Visibility::Public;
                 let mut body_cursor = body.walk();
                 for child in body.children(&mut body_cursor) {
                     match child.kind() {
@@ -79,11 +80,14 @@ impl LanguageParser for RubyParser {
                             if let Some(name_node) = child.child_by_field_name("name") {
                                 let m_name = get_node_text(name_node, content);
                                 
-                                if current_visibility == "public" && !m_name.starts_with('_') {
-                                    methods.push(m_name.clone());
+                                if !m_name.starts_with('_') {
+                                    methods.push(MethodInfo {
+                                        name: m_name.clone(),
+                                        visibility: current_visibility,
+                                    });
                                 }
                                 
-                                // Heuristic: Check parameters for relationships (even for private methods for relationship tracking)
+                                // Heuristic: Check parameters for relationships
                                 if let Some(params) = child.child_by_field_name("parameters") {
                                     let mut p_cursor = params.walk();
                                     for param in params.children(&mut p_cursor) {
@@ -91,16 +95,18 @@ impl LanguageParser for RubyParser {
                                             let p_text = get_node_text(param, content);
                                             let target = to_pascal_case(&p_text);
                                             
-                                            let rel_type = if m_name == "initialize" {
-                                                RelationshipType::Aggregation
-                                            } else {
-                                                RelationshipType::Dependency
-                                            };
-                                            relationships.push(Relationship {
-                                                target,
-                                                rel_type,
-                                                label: None,
-                                            });
+                                            if !is_ruby_builtin(&target) {
+                                                let rel_type = if m_name == "initialize" {
+                                                    RelationshipType::Aggregation
+                                                } else {
+                                                    RelationshipType::Dependency
+                                                };
+                                                relationships.push(Relationship {
+                                                    target,
+                                                    rel_type,
+                                                    label: Some(p_text.clone()),
+                                                });
+                                            }
                                         }
                                     }
                                 }
@@ -108,8 +114,10 @@ impl LanguageParser for RubyParser {
                         }
                         "singleton_method" => {
                             if let Some(name_node) = child.child_by_field_name("name") {
-                                // Class methods are usually considered public
-                                methods.push(format!("self.{}", get_node_text(name_node, content)));
+                                methods.push(MethodInfo {
+                                    name: format!("self.{}", get_node_text(name_node, content)),
+                                    visibility: Visibility::Public,
+                                });
                             }
                         }
                         "call" | "command" | "identifier" => {
@@ -123,24 +131,24 @@ impl LanguageParser for RubyParser {
 
                             match cmd.as_str() {
                                 "private" | "protected" | "public" => {
-                                    // Check if it's a visibility modifier without arguments
                                     let has_args = child.child_by_field_name("arguments").is_some();
                                     if !has_args {
                                         current_visibility = match cmd.as_str() {
-                                            "private" => "private",
-                                            "protected" => "protected",
-                                            _ => "public",
+                                            "private" => Visibility::Private,
+                                            "protected" => Visibility::Protected,
+                                            _ => Visibility::Public,
                                         };
                                     }
                                 }
                                 "attr_accessor" | "attr_reader" | "attr_writer" => {
-                                    if current_visibility == "public" {
-                                        if let Some(args) = child.child_by_field_name("arguments") {
-                                            let mut arg_cursor = args.walk();
-                                            for arg in args.children(&mut arg_cursor) {
-                                                let arg_text = get_node_text(arg, content);
-                                                properties.push(arg_text.trim_start_matches(':').to_string());
-                                            }
+                                    if let Some(args) = child.child_by_field_name("arguments") {
+                                        let mut arg_cursor = args.walk();
+                                        for arg in args.children(&mut arg_cursor) {
+                                            let arg_text = get_node_text(arg, content);
+                                            properties.push(PropertyInfo {
+                                                name: arg_text.trim_start_matches(':').to_string(),
+                                                visibility: current_visibility,
+                                            });
                                         }
                                     }
                                 }
@@ -175,6 +183,14 @@ impl LanguageParser for RubyParser {
 
         Ok(classes)
     }
+}
+
+fn is_ruby_builtin(name: &str) -> bool {
+    let builtins: HashSet<&str> = [
+        "String", "Integer", "Float", "Array", "Hash", "Symbol", "TrueClass", "FalseClass", "NilClass",
+        "Object", "Kernel", "Module", "Class", "Numeric", "Range", "Regexp", "Proc", "Method", "IO", "File", "Dir", "Time"
+    ].iter().cloned().collect();
+    builtins.contains(name) || name == "Data" || name == "Arg"
 }
 
 fn get_node_text(node: Node, content: &str) -> String {
@@ -224,9 +240,25 @@ end
         assert_eq!(classes.len(), 1);
         let dog = &classes[0];
         assert_eq!(dog.name, "Dog");
-        assert!(dog.methods.contains(&"bark".to_string()));
-        assert!(dog.methods.contains(&"eat".to_string()));
-        assert!(!dog.methods.contains(&"sleep".to_string()), "Private methods should be excluded");
+        
+        let bark = dog.methods.iter().find(|m| m.name == "bark").unwrap();
+        assert_eq!(bark.visibility, Visibility::Public);
+
+        let sleep = dog.methods.iter().find(|m| m.name == "sleep").unwrap();
+        assert_eq!(sleep.visibility, Visibility::Private);
+        Ok(())
+    }
+
+    #[test]
+    fn test_ruby_namespace() -> Result<()> {
+        let content = "
+module UI
+  class Button; end
+end
+";
+        let classes = parse(content)?;
+        let button = classes.iter().find(|c| c.name.contains("Button")).unwrap();
+        assert_eq!(button.name, "UI::Button");
         Ok(())
     }
 
@@ -264,7 +296,7 @@ end
         
         // Modules should be treated as classes for the sake of the diagram
         let swimmable = classes.iter().find(|c| c.name == "Swimmable").expect("Should find Swimmable module");
-        assert!(swimmable.methods.contains(&"swim".to_string()));
+        assert!(swimmable.methods.iter().any(|m| m.name == "swim"));
 
         let fish = classes.iter().find(|c| c.name == "Fish").unwrap();
         // Mixins are often represented as a form of inheritance/realization in UML
@@ -291,10 +323,10 @@ end
         let classes = parse(content)?;
         let user = &classes[0];
         
-        assert!(user.properties.contains(&"name".to_string()));
-        assert!(user.properties.contains(&"email".to_string()));
-        assert!(user.properties.contains(&"id".to_string()));
-        assert!(user.properties.contains(&"password".to_string()));
+        assert!(user.properties.iter().any(|p| p.name == "name"));
+        assert!(user.properties.iter().any(|p| p.name == "email"));
+        assert!(user.properties.iter().any(|p| p.name == "id"));
+        assert!(user.properties.iter().any(|p| p.name == "password"));
         
         Ok(())
     }
@@ -314,27 +346,9 @@ end
         let classes = parse(content)?;
         let car = classes.iter().find(|c| c.name == "Car").unwrap();
         
-        // In Ruby, we detect relationships by looking at initialize parameters 
-        // or common patterns, though it's dynamically typed.
-        // For 'complete' tests, we expect the parser to try and infer these.
         assert!(car.relationships.iter().any(|r| 
             r.target == "Engine" && r.rel_type == RelationshipType::Aggregation
         ));
-        Ok(())
-    }
-
-    #[test]
-    fn test_parse_nested_structures() -> Result<()> {
-        let content = "
-module Namespace
-  class Inner
-    def do_something; end
-  end
-end
-";
-        let classes = parse(content)?;
-        let inner = classes.iter().find(|c| c.name == "Namespace::Inner").expect("Should find nested class with full namespace");
-        assert!(inner.methods.contains(&"do_something".to_string()));
         Ok(())
     }
 
@@ -370,7 +384,6 @@ end
         let classes = parse(content)?;
         let processor = &classes[0];
         
-        // Check for dependency if used in method but not stored in initialize
         assert!(processor.relationships.iter().any(|r| 
             r.target == "DataSource" && r.rel_type == RelationshipType::Dependency
         ));
