@@ -417,7 +417,7 @@ public:
     }
 
     #[test]
-    fn test_parse_function_pointer_field_dependency() -> Result<()> {
+    fn test_parse_function_pointer_parameter_dependency() -> Result<()> {
         let content = "
 class Dependency {};
 
@@ -430,18 +430,20 @@ class Handler {
         let handler = classes.iter().find(|c| c.name == "Handler").unwrap();
         // Should find dependency on 'Dependency'
         assert!(handler.relationships.iter().any(|r| r.target == "Dependency" && r.rel_type == RelationshipType::Dependency));
+        Ok(())
+    }
 
-        // Also check if return type is captured if it was not void
-        let content2 = "
+    #[test]
+    fn test_parse_function_pointer_return_type_dependency() -> Result<()> {
+        let content = "
 class ReturnType {};
 class Handler2 {
     ReturnType* (*callback)();
 };
 ";
-        let classes2 = CppParser.parse(content2)?;
-        let handler2 = classes2.iter().find(|c| c.name == "Handler2").unwrap();
+        let classes = CppParser.parse(content)?;
+        let handler2 = classes.iter().find(|c| c.name == "Handler2").unwrap();
         assert!(handler2.relationships.iter().any(|r| r.target == "ReturnType" && r.rel_type == RelationshipType::Dependency));
-
         Ok(())
     }
 }
