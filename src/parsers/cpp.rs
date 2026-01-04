@@ -76,13 +76,13 @@ impl LanguageParser for CppParser {
                     match child.kind() {
                         "access_specifier" => {
                             let text = get_node_text(child, content);
-                            if text.contains("public") {
-                                current_visibility = Visibility::Public;
-                            } else if text.contains("protected") {
-                                current_visibility = Visibility::Protected;
-                            } else if text.contains("private") {
-                                current_visibility = Visibility::Private;
-                            }
+                            let keyword = text.trim_matches(':').trim();
+                            current_visibility = match keyword {
+                                "public" => Visibility::Public,
+                                "protected" => Visibility::Protected,
+                                "private" => Visibility::Private,
+                                _ => current_visibility,
+                            };
                         }
                         "field_declaration" => {
                             if let Some(declarator) = child.child_by_field_name("declarator") {

@@ -62,8 +62,11 @@ cargo test
 ## 📝 Development Notes
 
 - **File Discovery**: The scanner filters for specific extensions (default: `["py", "java", "cpp", "rb"]`) and respects `.gitignore`.
-- **Parsing Status**: Parsing logic is implemented for Python, Java, C++, and Ruby using `tree-sitter`. It detects classes, methods, properties, and complex UML relationships.
-- **Output**: Generates `.mmd` (Mermaid) files to a specified output path.
+- **Parsing Status**: Parsing logic is implemented for Python, Java, C++, and Ruby using `tree-sitter`.
+    - **Visibility**: Supports `public`, `protected`, `private`, and `internal` (language-specific heuristics).
+    - **Namespaces**: Detects nested classes and namespaces/packages.
+    - **Relationships**: Detects inheritance, composition, aggregation, and dependency with automated labels.
+- **Output**: Generates `.mmd` (Mermaid) files with configurable visibility levels.
 
 ## 🤝 Contribution Guidelines
 

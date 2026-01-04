@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use clap::ValueEnum;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RelationshipType {
@@ -8,12 +9,24 @@ pub enum RelationshipType {
     Dependency,  // ..>
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[clap(rename_all = "lower")]
 pub enum Visibility {
     Public,    // +
     Protected, // #
     Private,   // -
     Internal,  // ~
+}
+
+impl std::fmt::Display for Visibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Visibility::Public => write!(f, "public"),
+            Visibility::Protected => write!(f, "protected"),
+            Visibility::Private => write!(f, "private"),
+            Visibility::Internal => write!(f, "internal"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,7 +48,7 @@ pub struct PropertyInfo {
     pub visibility: Visibility,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassInfo {
     pub name: String,
     pub methods: Vec<MethodInfo>,

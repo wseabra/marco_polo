@@ -17,6 +17,15 @@ Marco is a high-performance CLI tool written in **Rust** that scans your codebas
   - [x] **Ruby**: Full support for classes, modules, and mixins.
   - [ ] TypeScript (Coming soon)
 
+## 📊 Language Feature Support
+
+| Feature | Python | Java | C++ |
+| :--- | :---: | :---: | :---: |
+| **Visibility Tracking** | ✅ | ✅ | ✅ |
+| **Namespace Awareness** | ✅ | ✅ | ✅ |
+| **Relationship Labels** | ✅ | ✅ | ✅ |
+| **Multi-level Inheritance** | ✅ | ✅ | ✅ |
+
 ## 🛠️ Getting Started
 
 ### Prerequisites
@@ -52,6 +61,7 @@ marco-polo [OPTIONS] [PATH]
 **Options:**
 - `-o, --output <FILE>`: Output file path for the Mermaid diagram (default: `output.mmd`).
 - `-e, --extensions <EXT>`: Comma-separated list of file extensions to scan (default: `py,java,cpp,rb`).
+- `-v, --visibility <LEVELS>`: Comma-separated visibility levels to include (default: `public`). Options: `public`, `protected`, `private`, `internal`.
 - `-h, --help`: Print help information.
 
 **Example:**
