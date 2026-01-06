@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use std::fs;
 use crate::models::Visibility;
+use rayon::prelude::*;
 
 mod models;
 mod scanner;
@@ -38,21 +39,25 @@ fn main() -> Result<()> {
     let files = scanner::find_source_files(&args.path, &extensions)?;
     eprintln!("Found {} files with extensions {:?}.", files.len(), extensions);
 
-    let mut all_classes = Vec::new();
+    // 2. Parse Each File (Parallel)
+    // We use map to preserve Results and collect to stop on first error (fail-fast)
+    let results: Result<Vec<Vec<models::ClassInfo>>> = files.par_iter()
+        .map(|file_path| {
+            let ext = file_path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
-    // 2. Parse Each File
-    for file_path in files {
-        let ext = file_path.extension().and_then(|s| s.to_str()).unwrap_or("");
-        
-        if let Some(parser) = parsers::get_parser(ext) {
-            eprintln!("Parsing: {:?}", file_path);
-            let content = fs::read_to_string(&file_path)?;
-            let classes = parser.parse(&content)?;
-            all_classes.extend(classes);
-        } else {
-            eprintln!("Skipping {:?}: No parser found for extension '{}'", file_path, ext);
-        }
-    }
+            if let Some(parser) = parsers::get_parser(ext) {
+                // Note: eprintln! inside parallel loop might be interleaved, but acceptable for progress
+                // eprintln!("Parsing: {:?}", file_path);
+                let content = fs::read_to_string(file_path)?;
+                parser.parse(&content)
+            } else {
+                // Skip files without parsers
+                Ok(Vec::new())
+            }
+        })
+        .collect();
+
+    let all_classes = results?.into_iter().flatten().collect::<Vec<_>>();
 
     eprintln!("Extracted {} classes.", all_classes.len());
 
