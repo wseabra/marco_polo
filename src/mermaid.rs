@@ -31,6 +31,7 @@ pub fn generate_mermaid(classes: &[ClassInfo], enabled_visibilities: &[Visibilit
 
     // 2. Define Relationships
     let mut seen = HashSet::new();
+    let mut line_buffer = String::new();
     for class in classes {
         for rel in &class.relationships {
             let arrow = match rel.rel_type {
@@ -40,14 +41,17 @@ pub fn generate_mermaid(classes: &[ClassInfo], enabled_visibilities: &[Visibilit
                 RelationshipType::Dependency => "..>",
             };
 
-            let line = if let Some(label) = &rel.label {
-                format!("    {} {} {} : {}", rel.target, arrow, class.name, label)
+            line_buffer.clear();
+            if let Some(label) = &rel.label {
+                write!(&mut line_buffer, "    {} {} {} : {}", rel.target, arrow, class.name, label).unwrap();
             } else {
-                format!("    {} {} {}", rel.target, arrow, class.name)
-            };
+                write!(&mut line_buffer, "    {} {} {}", rel.target, arrow, class.name).unwrap();
+            }
 
-            if seen.insert(line.clone()) {
-                writeln!(&mut diagram, "{}", line).unwrap();
+            // Check if already seen to avoid unnecessary clone
+            if !seen.contains(&line_buffer) {
+                seen.insert(line_buffer.clone());
+                writeln!(&mut diagram, "{}", line_buffer).unwrap();
             }
         }
     }
